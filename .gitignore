@@ -1,0 +1,8 @@
+# Reference: https://github.com/github/gitignore/blob/master/Python.gitignore
+# Add rules to this file as the needs emerge
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+
+# Distribution / packaging
+*.egg-info/
