@@ -3,7 +3,9 @@ from pathlib import Path
 
 import h5py
 import numpy as np
+import unyt
 
+from .unit import create_unit_registry
 from .util import np_equal
 
 
@@ -12,7 +14,7 @@ class Snapshot(object):
         'NumPart_ThisFile'
     ]
 
-    def __init__(self, prefix, suffix='.hdf5'):
+    def __init__(self, prefix, suffix='.hdf5', cosmological=None):
         # Determine snapshot paths
         pre_path = Path(prefix).expanduser().resolve()
         if pre_path.is_dir():
@@ -30,6 +32,25 @@ class Snapshot(object):
 
         # Read header
         self.header = self._read_header()
+
+        # Determine whether this snapshot is cosmological or not
+        if cosmological is None:
+            # Guess if not specified
+            a = self.header['Time']
+            z = self.header['Redshift']
+            if np.isclose(a, 1 / (1 + z)):
+                cosmological = True;
+            else:
+                cosmological = False;
+        self.cosmological = cosmological
+
+        # Create unit registry
+        h = float(self.header['HubbleParam'])
+        if self.cosmological:
+            a = float(self.header['Time'])
+        else:
+            a = 1.0
+        self.unit_registry = create_unit_registry(a=a, h=h)
 
         # Initialize field cache
         self._field_cache = {}
@@ -65,18 +86,32 @@ class Snapshot(object):
 
         return hdr
 
+    def array(self, value, unit):
+        return unyt.unyt_array(value, unit, registry=self.unit_registry)
+
+    def quantity(self, value, unit):
+        return unyt.unyt_quantity(value, unit, registry=self.unit_registry)
+
     def __getitem__(self, key):
-        # Read from file if field cache doesn't exist
+        # Read from file if cache doesn't exist
         if key not in self._field_cache:
             data = []
             for path in self.paths:
                 with h5py.File(path) as h5f:
                     data += [h5f['/'.join(key)][()]]
             data = np.concatenate(data)
-            self._field_cache[key] = data
+            unit = self._get_field_unit(key[1])
+            self._field_cache[key] = self.array(data, unit)
 
         return self._field_cache[key]
 
     def __delitem__(self, key):
         # Delete cache
         del self._field_cache[key]
+
+    def _get_field_unit(self, field):
+        from .unit import KNOWN_GIZMO_FIELD_UNITS
+        if field in KNOWN_GIZMO_FIELD_UNITS:
+            return KNOWN_GIZMO_FIELD_UNITS[field]
+        else:
+            return 'dimensionless'
