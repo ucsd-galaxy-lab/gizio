@@ -31,15 +31,17 @@ class Snapshot(object):
                 spec = f.read()
         else:
             spec = resource_string(__name__, f'spec/h5/{spec}.json')
-        self.spec = json.loads(spec)
+        spec = json.loads(spec)
 
-        # Load header from the first file
-        with h5py.File(self.paths[0], 'r') as h5f:
-            self.header = dict(h5f[self.spec['header']['group']].attrs)
-
-        # Load core header fields
+        # Load headers
+        self.headers = []
+        for path in self.paths:
+            with h5py.File(path, 'r') as h5f:
+                self.headers += [dict(h5f[spec['header']['group']].attrs)]
+        
+        # Load core header fields from the first header
         def load_core(key):
-            return self.header[self.spec['header']['core'][key]]
+            return self.headers[0][spec['header']['core'][key]]
         a = float(load_core('time'))
         z = float(load_core('redshift'))
         h = float(load_core('hubble'))
@@ -56,7 +58,7 @@ class Snapshot(object):
         # Create unit registry
         if not self.cosmological:
             a = 1.0
-        unit_system = self.spec['unit_system']
+        unit_system = spec['unit_system']
         self.unit_registry = create_unit_registry(
             a=a, h=h,
             solar_abundance=unit_system['SolarAbundance'],
@@ -66,20 +68,28 @@ class Snapshot(object):
             unit_magnetic_field_cgs=unit_system['UnitMagneticField_in_gauss'],
         )
 
+        # Detect available keys
+        self.particle_types = spec['particle_types']
+        self.keys = []
+        with h5py.File(self.paths[0], 'r') as h5f:
+            for pt in self.particle_types:
+                if pt in h5f:
+                    for field in h5f[pt].keys():
+                        self.keys += [(pt, field)]
+        self.fields = list(set(field for pt, field in self.keys))
+
         # Configure fields
-        field_abbrs = {}
-        field_units = {}
-        for abbr, name, unit in self.spec['fields']:
-            field_abbrs[abbr] = name
-            field_units[name] = unit
-        self._field_abbrs = field_abbrs
-        self._field_units = field_units
+        self.field_abbrs = {}
+        self.field_units = {}
+        for abbr, name, unit in spec['fields']:
+            self.field_abbrs[abbr] = name
+            self.field_units[name] = unit
         self._field_cache = {}
 
         # Set up particle type accessors
         self.pt = [
             ParticleTypeAccessor(self, ptype)
-            for ptype in self.spec['particle_types']
+            for ptype in self.particle_types
         ]
 
     def array(self, value, unit):
@@ -106,8 +116,8 @@ class Snapshot(object):
         del self._field_cache[key]
 
     def _get_field_unit(self, field_name):
-        if field_name in self._field_units:
-            return self._field_units[field_name]
+        if field_name in self.field_units:
+            return self.field_units[field_name]
         else:
             return 'dimensionless'
 
@@ -117,17 +127,17 @@ class ParticleTypeAccessor(object):
         self._snap = snap
         self._ptype = ptype
 
-    def __getitem__(self, key):
-        return self._snap[self._ptype, key]
+    def __getitem__(self, name):
+        return self._snap[self._ptype, name]
 
-    def __delitem__(self, key):
-        del self._snap[self._ptype, key]
+    def __delitem__(self, name):
+        del self._snap[self._ptype, name]
 
     def __getattr__(self, abbr):
-        return self[self._snap._field_abbrs[abbr]]
+        return self[self._snap.field_abbrs[abbr]]
 
-    def __delattr__(self, alias):
-        del self[self._snap._field_abbrs[abbr]]
+    def __delattr__(self, abbr):
+        del self[self._snap.field_abbrs[abbr]]
 
 
 # Reference:
