@@ -69,6 +69,12 @@ class Snapshot(object):
         # Initialize field cache
         self._field_cache = {}
 
+        # Set up particle type accessors
+        self.pt = [
+            ParticleTypeAccessor(self, ptype)
+            for ptype in self.spec['particle_types']
+        ]
+
     def array(self, value, unit):
         return unyt.unyt_array(value, unit, registry=self.unit_registry)
 
@@ -98,6 +104,18 @@ class Snapshot(object):
             return field_units[field]
         else:
             return 'dimensionless'
+
+
+class ParticleTypeAccessor(object):
+    def __init__(self, snap, ptype):
+        self.snap = snap
+        self.ptype = ptype
+
+    def __getitem__(self, key):
+        return self.snap[self.ptype, key]
+
+    def __delitem__(self, key):
+        del self.snap[self.ptype, key]
 
 
 # Reference:
