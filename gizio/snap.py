@@ -66,7 +66,14 @@ class Snapshot(object):
             unit_magnetic_field_cgs=unit_system['UnitMagneticField_in_gauss'],
         )
 
-        # Initialize field cache
+        # Configure fields
+        field_abbrs = {}
+        field_units = {}
+        for abbr, name, unit in self.spec['fields']:
+            field_abbrs[abbr] = name
+            field_units[name] = unit
+        self._field_abbrs = field_abbrs
+        self._field_units = field_units
         self._field_cache = {}
 
         # Set up particle type accessors
@@ -98,24 +105,29 @@ class Snapshot(object):
         # Delete cache
         del self._field_cache[key]
 
-    def _get_field_unit(self, field):
-        field_units = self.spec['field_units']
-        if field in field_units:
-            return field_units[field]
+    def _get_field_unit(self, field_name):
+        if field_name in self._field_units:
+            return self._field_units[field_name]
         else:
             return 'dimensionless'
 
 
 class ParticleTypeAccessor(object):
     def __init__(self, snap, ptype):
-        self.snap = snap
-        self.ptype = ptype
+        self._snap = snap
+        self._ptype = ptype
 
     def __getitem__(self, key):
-        return self.snap[self.ptype, key]
+        return self._snap[self._ptype, key]
 
     def __delitem__(self, key):
-        del self.snap[self.ptype, key]
+        del self._snap[self._ptype, key]
+
+    def __getattr__(self, abbr):
+        return self[self._snap._field_abbrs[abbr]]
+
+    def __delattr__(self, alias):
+        del self[self._snap._field_abbrs[abbr]]
 
 
 # Reference:
