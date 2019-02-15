@@ -1,0 +1,48 @@
+{
+  "header": {
+    "group": "Header",
+    "core": {
+      "n_file": "NumFilesPerSnapshot",
+      "n_part": "NumPart_Total",
+      "n_part_file": "NumPart_ThisFile",
+      "time": "Time",
+      "redshift": "Redshift",
+      "hubble": "HubbleParam"
+    }
+  },
+  "particle_types": [
+    "PartType0",
+    "PartType1",
+    "PartType2",
+    "PartType3",
+    "PartType4",
+    "PartType5"
+  ],
+  "field_units": {
+    "Coordinates": "code_length",
+    "Velocities": "code_velocity",
+    "ParticleIDs": "",
+    "Masses": "code_mass",
+    "InternalEnergy": "code_specific_energy",
+    "Density": "code_mass / code_length**3",
+    "SmoothingLength": "code_length",
+    "ElectronAbundance": "",
+    "NeutralHydrogenAbundance": "",
+    "StarFormationRate": "Msun / yr",
+    "Metallicity": "code_metallicity",
+    "ArtificialViscosity": "",
+    "MagneticField": "code_magnetic_field",
+    "DivergenceOfMagneticField": "code_magnetic_field / code_length",
+    "StellarFormationTime": "",
+    "BH_Mass": "code_mass",
+    "BH_Mdot": "code_mass / code_time",
+    "BH_Mass_AlphaDisk": "code_mass"
+  },
+  "unit_system": {
+    "SolarAbundance": 0.02,
+    "UnitLength_in_cm": 3.085678e21,
+    "UnitMass_in_g": 1.989e43,
+    "UnitVelocity_in_cm_per_s": 1e5,
+    "UnitMagneticField_in_gauss": 1.0
+  }
+}

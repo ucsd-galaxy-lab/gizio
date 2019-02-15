@@ -1,20 +1,15 @@
+import json
 import os
 from pathlib import Path
+from pkg_resources import resource_string
 
 import h5py
 import numpy as np
 import unyt
 
-from .unit import create_unit_registry
-from .util import np_equal
-
 
 class Snapshot(object):
-    HEADER_FIELDS_HETERO = [
-        'NumPart_ThisFile'
-    ]
-
-    def __init__(self, prefix, suffix='.hdf5', cosmological=None):
+    def __init__(self, prefix, suffix='.hdf5', cosmological=None, spec='gizmo'):
         # Determine snapshot paths
         pre_path = Path(prefix).expanduser().resolve()
         if pre_path.is_dir():
@@ -30,14 +25,28 @@ class Snapshot(object):
         # There must be at least one path
         assert len(self.paths) > 0
 
-        # Read header
-        self.header = self._read_header()
+        # Load spec
+        if os.path.isfile(spec):
+            with open(spec, 'r') as f:
+                spec = f.read()
+        else:
+            spec = resource_string(__name__, f'spec/h5/{spec}.json')
+        self.spec = json.loads(spec)
+
+        # Load header from the first file
+        with h5py.File(self.paths[0], 'r') as h5f:
+            self.header = dict(h5f[self.spec['header']['group']].attrs)
+
+        # Load core header fields
+        def load_core(key):
+            return self.header[self.spec['header']['core'][key]]
+        a = float(load_core('time'))
+        z = float(load_core('redshift'))
+        h = float(load_core('hubble'))
 
         # Determine whether this snapshot is cosmological or not
         if cosmological is None:
             # Guess if not specified
-            a = self.header['Time']
-            z = self.header['Redshift']
             if np.isclose(a, 1 / (1 + z)):
                 cosmological = True;
             else:
@@ -45,46 +54,20 @@ class Snapshot(object):
         self.cosmological = cosmological
 
         # Create unit registry
-        h = float(self.header['HubbleParam'])
-        if self.cosmological:
-            a = float(self.header['Time'])
-        else:
+        if not self.cosmological:
             a = 1.0
-        self.unit_registry = create_unit_registry(a=a, h=h)
+        unit_system = self.spec['unit_system']
+        self.unit_registry = create_unit_registry(
+            a=a, h=h,
+            solar_abundance=unit_system['SolarAbundance'],
+            unit_length_cgs=unit_system['UnitLength_in_cm'],
+            unit_mass_cgs=unit_system['UnitMass_in_g'],
+            unit_velocity_cgs=unit_system['UnitVelocity_in_cm_per_s'],
+            unit_magnetic_field_cgs=unit_system['UnitMagneticField_in_gauss'],
+        )
 
         # Initialize field cache
         self._field_cache = {}
-
-    def _read_header(self):
-        # Read header from the first file
-        with h5py.File(self.paths[0]) as h5f:
-            hdr = dict(h5f['Header'].attrs)
-
-        # Check the number of files
-        assert hdr['NumFilesPerSnapshot'] == len(self.paths)
-
-        # Prepare to collect heterogeneous header fields
-        for key in self.HEADER_FIELDS_HETERO:
-            hdr[key] = [hdr[key]]
-
-        # Check header with the rest files
-        for path in self.paths[1:]:
-            with h5py.File(path) as h5f:
-                hdr_this = dict(h5f['Header'].attrs)
-                assert set(hdr_this.keys()) == set(hdr.keys())
-                for key in hdr_this.keys():
-                    if key in self.HEADER_FIELDS_HETERO:
-                        # Collect heterogeneous fields
-                        hdr[key] += [hdr_this[key]]
-                    else:
-                        # Verify homogeneous fields
-                        assert np_equal(hdr[key], hdr_this[key])
-
-        # NumPart_ThisFile should add up to NumPart_Total
-        assert np_equal(hdr['NumPart_Total'],
-                        np.sum(hdr['NumPart_ThisFile'], axis=0))
-
-        return hdr
 
     def array(self, value, unit):
         return unyt.unyt_array(value, unit, registry=self.unit_registry)
@@ -97,7 +80,7 @@ class Snapshot(object):
         if key not in self._field_cache:
             data = []
             for path in self.paths:
-                with h5py.File(path) as h5f:
+                with h5py.File(path, 'r') as h5f:
                     data += [h5f['/'.join(key)][()]]
             data = np.concatenate(data)
             unit = self._get_field_unit(key[1])
@@ -110,8 +93,40 @@ class Snapshot(object):
         del self._field_cache[key]
 
     def _get_field_unit(self, field):
-        from .unit import KNOWN_GIZMO_FIELD_UNITS
-        if field in KNOWN_GIZMO_FIELD_UNITS:
-            return KNOWN_GIZMO_FIELD_UNITS[field]
+        field_units = self.spec['field_units']
+        if field in field_units:
+            return field_units[field]
         else:
             return 'dimensionless'
+
+
+# Reference:
+# http://www.tapir.caltech.edu/~phopkins/Site/GIZMO_files/gizmo_documentation.html#snaps-units
+def create_unit_registry(
+        a=1.0, h=0.7, solar_abundance=0.02,
+        unit_length_cgs=3.085678e21,
+        unit_mass_cgs=1.989e43,
+        unit_velocity_cgs=1e5,
+        unit_magnetic_field_cgs=1.0,
+    ):
+    reg = unyt.UnitRegistry()
+
+    def def_unit(symbol, value):
+        value = unyt.unyt_quantity(*value, registry=reg)
+        base_value = float(value.in_base(unit_system='mks'))
+        dimensions = value.units.dimensions
+        reg.add(symbol, base_value, dimensions)
+
+    def_unit('a', (a, ''))
+    def_unit('h', (h, ''))
+    def_unit('code_metallicity', (solar_abundance, ''))
+
+    def_unit('code_length', (unit_length_cgs / h * a, 'cm'))
+    def_unit('code_mass', (unit_mass_cgs / h, 'g'))
+    def_unit('code_velocity', (unit_velocity_cgs * np.sqrt(a), 'cm / s'))
+    def_unit('code_magnetic_field', (unit_magnetic_field_cgs, 'gauss'))
+
+    def_unit('code_specific_energy', (unit_velocity_cgs**2, '(cm / s)**2'))
+    def_unit('code_time', (1, 'code_length / code_velocity'))
+
+    return reg
