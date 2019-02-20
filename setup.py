@@ -7,6 +7,7 @@ setup(
         '': ['*.json'],
     },
     install_requires=[
+        'astropy',
         'h5py',
         'numpy',
         'unyt',

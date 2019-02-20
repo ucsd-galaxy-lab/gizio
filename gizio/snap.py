@@ -3,94 +3,76 @@ import os
 from pathlib import Path
 from pkg_resources import resource_string
 
+from astropy.cosmology import LambdaCDM
 import h5py
 import numpy as np
 import unyt
 
+from .field.system import ParticleSelector
+from .unit import create_unit_registry
+
 
 class Snapshot(object):
-    def __init__(self, prefix, suffix='.hdf5', cosmological=None, spec='gizmo'):
+    def __init__(self, prefix, suffix='.hdf5', spec='gizmo'):
         # Determine snapshot paths
-        pre_path = Path(prefix).expanduser().resolve()
-        if pre_path.is_dir():
-            self.dir = pre_path
+        prefix = Path(prefix).expanduser().resolve()
+        if prefix.is_dir():
+            # Directory case
+            self.dir = prefix
             glob_pattern = '*' + suffix
         else:
-            self.dir = pre_path.parent
-            glob_pattern = pre_path.name + '*' + suffix
+            self.dir = prefix.parent
+            # Single file case
+            glob_pattern = prefix.name
+            if not prefix.is_file():
+                # Glob prefix case
+                glob_pattern += ('*' + suffix)
         self.paths = [path for path in sorted(self.dir.glob(glob_pattern))]
-        self.name = os.path.commonprefix(
-            [path.stem for path in self.paths]).rstrip('.')
-
+        stems = [path.stem for path in self.paths]
+        self.name = os.path.commonprefix(stems).rstrip('.')
         # There must be at least one path
         assert len(self.paths) > 0
 
-        # Load spec
-        if os.path.isfile(spec):
-            with open(spec, 'r') as f:
-                spec = f.read()
-        else:
-            spec = resource_string(__name__, f'spec/h5/{spec}.json')
-        spec = json.loads(spec)
+        # Load specification
+        self.spec = Specification(spec)
 
-        # Load headers
-        self.headers = []
-        for path in self.paths:
-            with h5py.File(path, 'r') as h5f:
-                self.headers += [dict(h5f[spec['header']['group']].attrs)]
-        
-        # Load core header fields from the first header
-        def load_core(key):
-            return self.headers[0][spec['header']['core'][key]]
-        a = float(load_core('time'))
-        z = float(load_core('redshift'))
-        h = float(load_core('hubble'))
+        # Load header
+        self.header = Header(self, self.spec.header)
 
-        # Determine whether this snapshot is cosmological or not
-        if cosmological is None:
-            # Guess if not specified
-            if np.isclose(a, 1 / (1 + z)):
-                cosmological = True;
-            else:
-                cosmological = False;
-        self.cosmological = cosmological
-
-        # Create unit registry
-        if not self.cosmological:
-            a = 1.0
-        unit_system = spec['unit_system']
+        # Set up unit system
+        unit_system = self.spec.unit_system
         self.unit_registry = create_unit_registry(
-            a=a, h=h,
+            a=self.header.a, h=self.header.h,
             solar_abundance=unit_system['SolarAbundance'],
             unit_length_cgs=unit_system['UnitLength_in_cm'],
             unit_mass_cgs=unit_system['UnitMass_in_g'],
             unit_velocity_cgs=unit_system['UnitVelocity_in_cm_per_s'],
             unit_magnetic_field_cgs=unit_system['UnitMagneticField_in_gauss'],
         )
+        self.header.attach_units(self.unit_registry)
 
         # Detect available keys
-        self.particle_types = spec['particle_types']
         self.keys = []
         with h5py.File(self.paths[0], 'r') as h5f:
-            for pt in self.particle_types:
-                if pt in h5f:
-                    for field in h5f[pt].keys():
-                        self.keys += [(pt, field)]
-        self.fields = list(set(field for pt, field in self.keys))
+            for ptype in self.spec.ptypes:
+                if ptype in h5f:
+                    for field in h5f[ptype].keys():
+                        self.keys += [(ptype, field)]
+        # Record detected ptypes in spec order
+        ptypes = set(ptype for ptype, _ in self.keys)
+        self.ptypes = [ptype for ptype in self.spec.ptypes if ptype in ptypes]
+        # Record detected fields in alphabetic order
+        fields = set(field for _, field in self.keys)
+        self.fields = sorted(fields)
 
-        # Configure fields
-        self.field_abbrs = {}
-        self.field_units = {}
-        for abbr, name, unit in spec['fields']:
-            self.field_abbrs[abbr] = name
-            self.field_units[name] = unit
-        self._field_cache = {}
+        # Set up particle type accessor
+        self.pt = ParticleTypeAccessor(self)
 
-        # Set up particle type accessors
-        self.pt = [
-            ParticleTypeAccessor(self, ptype)
-            for ptype in self.particle_types
-        ]
+        # Initialize cache
+        self.clear_cache()
+
+    def is_cosmological(self):
+        return self.header.cosmo is not None
 
     def array(self, value, unit):
         return unyt.unyt_array(value, unit, registry=self.unit_registry)
@@ -99,74 +81,127 @@ class Snapshot(object):
         return unyt.unyt_quantity(value, unit, registry=self.unit_registry)
 
     def __getitem__(self, key):
-        # Read from file if cache doesn't exist
-        if key not in self._field_cache:
-            data = []
+        # Load from file if cache doesn't exist
+        if key not in self._cache:
+            # Load value
+            value = []
             for path in self.paths:
                 with h5py.File(path, 'r') as h5f:
-                    data += [h5f['/'.join(key)][()]]
-            data = np.concatenate(data)
-            unit = self._get_field_unit(key[1])
-            self._field_cache[key] = self.array(data, unit)
-
-        return self._field_cache[key]
+                    value += [h5f['/'.join(key)][()]]
+            value = np.concatenate(value)
+            # Determine unit
+            _, field = key
+            if field in self.spec.field_units:
+                unit = self.spec.field_units[field]
+            else:
+                unit = 'dimensionless'
+            # Cache
+            self._cache[key] = self.array(value, unit)
+        # Retrieve cache
+        return self._cache[key]
 
     def __delitem__(self, key):
         # Delete cache
-        del self._field_cache[key]
+        del self._cache[key]
 
-    def _get_field_unit(self, field_name):
-        if field_name in self.field_units:
-            return self.field_units[field_name]
+    def clear_cache(self):
+        self._cache = {}
+
+
+class Header(object):
+    def __init__(self, snap, spec):
+        # Load raw headers
+        raw = []
+        for path in snap.paths:
+            with h5py.File(path, 'r') as h5f:
+                raw += [dict(h5f[spec['group']].attrs)]
+        self.raw = raw
+
+        def get(key, i=0):
+            return raw[i][spec['mapping'][key]]
+
+        # File and particle
+        self.n_file = get('n_file')
+        self.n_part = [get('n_part', i) for i in range(self.n_file)]
+        self.n_part_tot = get('n_part_tot')
+
+        # Time and cosmology
+        self.a = get('time')
+        self.z = get('redshift')
+        self.h = get('hubble')
+        if np.isclose(self.a, 1 / (1 + self.z)):
+            self.cosmo = LambdaCDM(self.h * 100, get('Om0'), get('OmL'))
+            self.time = self.cosmo.age(self.z).to_value('Gyr')
         else:
-            return 'dimensionless'
+            self.cosmo = None
+            self.time = self.a / self.h  # in Gyr
+            self.a = 1.0
+
+        # Flags
+        self.flag = {}
+        prefix = spec['flag_prefix']
+        for key in raw[0].keys():
+            if key.startswith(prefix):
+                k = key[len(prefix):]
+                self.flag[k] = raw[0][key]
+
+        # Other quantities
+        self.box_size = get('box_size')
+        self.mass_tab = get('mass_tab')
+
+    def attach_units(self, reg):
+        def attach(attr, unit):
+            value = getattr(self, attr)
+            if not hasattr(value, 'units'):
+                setattr(self, attr, value * unyt.Unit(unit, registry=reg))
+        attach('time', 'Gyr')
+        attach('box_size', 'code_length')
+        attach('mass_tab', 'code_mass')
 
 
 class ParticleTypeAccessor(object):
-    def __init__(self, snap, ptype):
+    def __init__(self, snap):
         self._snap = snap
-        self._ptype = ptype
 
-    def __getitem__(self, name):
-        return self._snap[self._ptype, name]
+        for pa, ptype in snap.spec.ptype_alias.items():
+            if ptype in snap.ptypes:
+                setattr(self, pa, ParticleSelector.from_ptype(snap, [ptype]))
+        self.all = ParticleSelector.from_ptype(snap, snap.ptypes)
 
-    def __delitem__(self, name):
-        del self._snap[self._ptype, name]
-
-    def __getattr__(self, abbr):
-        return self[self._snap.field_abbrs[abbr]]
-
-    def __delattr__(self, abbr):
-        del self[self._snap.field_abbrs[abbr]]
+    def __getitem__(self, key):
+        pa = list(self._snap.ptypes_alias.keys())[key]
+        return getattr(self, pa)
 
 
-# Reference:
-# http://www.tapir.caltech.edu/~phopkins/Site/GIZMO_files/gizmo_documentation.html#snaps-units
-def create_unit_registry(
-        a=1.0, h=0.7, solar_abundance=0.02,
-        unit_length_cgs=3.085678e21,
-        unit_mass_cgs=1.989e43,
-        unit_velocity_cgs=1e5,
-        unit_magnetic_field_cgs=1.0,
-    ):
-    reg = unyt.UnitRegistry()
+class Specification(object):
+    def __init__(self, spec):
+        # Load spec
+        if os.path.isfile(spec):
+            # Load from user file
+            with open(spec, 'r') as f:
+                spec = f.read()
+        else:
+            # Load from builtin file
+            spec = resource_string(__name__, f'spec/h5/{spec}.json')
+        # Parse JSON string
+        spec = json.loads(spec)
 
-    def def_unit(symbol, value):
-        value = unyt.unyt_quantity(*value, registry=reg)
-        base_value = float(value.in_base(unit_system='mks'))
-        dimensions = value.units.dimensions
-        reg.add(symbol, base_value, dimensions)
+        # Header and unit system
+        self.header = spec['header']
+        self.unit_system = spec['unit_system']
 
-    def_unit('a', (a, ''))
-    def_unit('h', (h, ''))
-    def_unit('code_metallicity', (solar_abundance, ''))
+        # Particle types
+        self.ptypes = []
+        self.ptype_alias = {}
+        for ptype, pa in spec['particle_types']:
+            self.ptypes += [ptype]
+            self.ptype_alias[pa] = ptype
 
-    def_unit('code_length', (unit_length_cgs / h * a, 'cm'))
-    def_unit('code_mass', (unit_mass_cgs / h, 'g'))
-    def_unit('code_velocity', (unit_velocity_cgs * np.sqrt(a), 'cm / s'))
-    def_unit('code_magnetic_field', (unit_magnetic_field_cgs, 'gauss'))
-
-    def_unit('code_specific_energy', (unit_velocity_cgs**2, '(cm / s)**2'))
-    def_unit('code_time', (1, 'code_length / code_velocity'))
-
-    return reg
+        # Fields
+        self.fields = []
+        self.field_alias = {}
+        self.field_units = {}
+        for field, fa, unit in spec['fields']:
+            self.fields += [field]
+            self.field_alias[fa] = field
+            self.field_units[field] = unit

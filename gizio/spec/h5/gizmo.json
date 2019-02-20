@@ -1,48 +1,53 @@
 {
   "header": {
     "group": "Header",
-    "core": {
+    "flag_prefix": "Flag_",
+    "mapping": {
       "n_file": "NumFilesPerSnapshot",
-      "n_part": "NumPart_Total",
-      "n_part_file": "NumPart_ThisFile",
+      "n_part": "NumPart_ThisFile",
+      "n_part_tot": "NumPart_Total",
       "time": "Time",
       "redshift": "Redshift",
-      "hubble": "HubbleParam"
+      "hubble": "HubbleParam",
+      "Om0": "Omega0",
+      "OmL": "OmegaLambda",
+      "box_size": "BoxSize",
+      "mass_tab": "MassTable"
     }
   },
-  "particle_types": [
-    "PartType0",
-    "PartType1",
-    "PartType2",
-    "PartType3",
-    "PartType4",
-    "PartType5"
-  ],
-  "fields": [
-    ["p", "Coordinates", "code_length"],
-    ["v", "Velocities", "code_velocity"],
-    ["id", "ParticleIDs", ""],
-    ["m", "Masses", "code_mass"],
-    ["u", "InternalEnergy", "code_specific_energy"],
-    ["rho", "Density", "code_mass / code_length**3"],
-    ["hsml", "SmoothingLength", "code_length"],
-    ["ne", "ElectronAbundance", ""],
-    ["nhi", "NeutralHydrogenAbundance", ""],
-    ["sfr", "StarFormationRate", "Msun / yr"],
-    ["z", "Metallicity", "code_metallicity"],
-    ["alpha", "ArtificialViscosity", ""],
-    ["b", "MagneticField", "code_magnetic_field"],
-    ["db", "DivergenceOfMagneticField", "code_magnetic_field / code_length"],
-    ["sft", "StellarFormationTime", ""],
-    ["bh_m", "BH_Mass", "code_mass"],
-    ["bh_mdot", "BH_Mdot", "code_mass / code_time"],
-    ["bh_m_ad", "BH_Mass_AlphaDisk", "code_mass"]
-  ],
   "unit_system": {
     "SolarAbundance": 0.02,
     "UnitLength_in_cm": 3.085678e21,
     "UnitMass_in_g": 1.989e43,
     "UnitVelocity_in_cm_per_s": 1e5,
     "UnitMagneticField_in_gauss": 1.0
-  }
+  },
+  "particle_types": [
+    ["PartType0", "gas"],
+    ["PartType1", "hdm"],
+    ["PartType2", "ldm"],
+    ["PartType3", "dummy"],
+    ["PartType4", "star"],
+    ["PartType5", "bh"]
+  ],
+  "fields": [
+    ["Coordinates", "p", "code_length"],
+    ["Velocities", "v", "code_velocity"],
+    ["ParticleIDs", "id", ""],
+    ["Masses", "m", "code_mass"],
+    ["InternalEnergy", "u", "code_specific_energy"],
+    ["Density", "rho", "code_mass / code_length**3"],
+    ["SmoothingLength", "h", "code_length"],
+    ["ElectronAbundance", "ne", ""],
+    ["NeutralHydrogenAbundance", "nh", ""],
+    ["StarFormationRate", "sfr", "Msun / yr"],
+    ["Metallicity", "z", "code_metallicity"],
+    ["ArtificialViscosity", "alpha", ""],
+    ["MagneticField", "b", "code_magnetic_field"],
+    ["DivergenceOfMagneticField", "divb", "code_magnetic_field / code_length"],
+    ["StellarFormationTime", "sft", ""],
+    ["BH_Mass", "mbh", "code_mass"],
+    ["BH_Mdot", "mdot", "code_mass / code_time"],
+    ["BH_Mass_AlphaDisk", "mad", "code_mass"]
+  ]
 }
