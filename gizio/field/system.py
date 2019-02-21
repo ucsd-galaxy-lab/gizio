@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import numpy as np
 import unyt
 
@@ -40,6 +42,19 @@ class FieldSystem(object):
 
     def clear_cache(self):
         self._cache = {}
+
+    def intersect(self, other):
+
+        def dict_intersect(d1, d2):
+            return dict(set(d1.items()) & set(d2.items()))
+
+        self.direct_fields = set(self.direct_fields) & set(other.direct_fields)
+        self.derived_fields = dict_intersect(
+            self.derived_fields, other.derived_fields
+        )
+        self._alias = dict_intersect(
+            self._alias, other._alias
+        )
 
 
 class ParticleSelector(FieldSystem):
@@ -88,8 +103,9 @@ class ParticleSelector(FieldSystem):
                     mask_ptype = key[left:left + n_true]
                     mask[ptype][mask[ptype]] = mask_ptype
                     left += n_true
-            ps = ParticleSelector(self.snap, mask)
-            ps.derived_fields = self.derived_fields.copy()
+            ps = deepcopy(self)
+            ps.clear_cache()
+            ps.mask = mask
             return ps
         elif isinstance(key, str):
             return super().__getitem__(key)
@@ -101,7 +117,6 @@ class ParticleSelector(FieldSystem):
     def __logical__(self, operator, other=None):
         if other is not None:
             assert self.snap is other.snap
-        snap = self.snap
 
         mask = {}
         for ptype in self.mask.keys():
@@ -117,16 +132,12 @@ class ParticleSelector(FieldSystem):
             for ptype in mask.keys():
                 mask[ptype] = operator(mask[ptype])
 
-        ps = ParticleSelector(snap, mask)
-        derived_fields = self.derived_fields.copy()
+        ps = deepcopy(self)
+        ps.clear_cache()
+        ps.mask =mask
         if other is not None:
-            common_derived_fields = {}
-            for key in other.derived_fields.keys():
-                if self.derived_fields[key] is other.derived_fields[key]:
-                    common_derived_fields[key] = self.derived_fields[key]
-            derived_fields = common_derived_fields
-        ps.derived_fields = derived_fields
-        return ParticleSelector(snap, mask)
+            ps.intersect(other)
+        return ps
 
     def __and__(self, other):
         return self.__logical__(np.logical_and, other)
