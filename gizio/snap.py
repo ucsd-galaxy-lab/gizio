@@ -8,6 +8,7 @@ import h5py
 import numpy as np
 import unyt
 
+from .field.shop import add_default_derived_fields
 from .field.system import ParticleSelector
 from .unit import create_unit_registry
 
@@ -163,10 +164,15 @@ class ParticleTypeAccessor(object):
     def __init__(self, snap):
         self._snap = snap
 
+        def init_ps(ptypes):
+            ps = ParticleSelector.from_ptype(snap, ptypes)
+            add_default_derived_fields(ps)
+            return ps
+
         for pa, ptype in snap.spec.ptype_alias.items():
             if ptype in snap.ptypes:
-                setattr(self, pa, ParticleSelector.from_ptype(snap, [ptype]))
-        self.all = ParticleSelector.from_ptype(snap, snap.ptypes)
+                setattr(self, pa, init_ps([ptype]))
+        self.all = init_ps(snap.ptypes)
 
     def __getitem__(self, key):
         pa = list(self._snap.ptypes_alias.keys())[key]

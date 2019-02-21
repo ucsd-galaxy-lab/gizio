@@ -3,7 +3,8 @@ import unyt
 
 
 class FieldSystem(object):
-    def __init__(self, direct_fields):
+    def __init__(self, snap, direct_fields):
+        self.snap = snap
         self.direct_fields = direct_fields
         self.derived_fields = {}
         self._alias = {}
@@ -52,14 +53,13 @@ class ParticleSelector(FieldSystem):
         return cls(snap, mask)
 
     def __init__(self, snap, mask):
-        self.snap = snap
-        self.mask = mask
-
         # Specify direct fields
         direct_fields = set(
             field for ptype, field in snap.keys if ptype in mask
         )
-        super().__init__(direct_fields)
+
+        super().__init__(snap, direct_fields)
+        self.mask = mask
 
         # Set aliases
         for fa, field in snap.spec.field_alias.items():
