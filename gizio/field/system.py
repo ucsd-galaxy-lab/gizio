@@ -9,18 +9,15 @@ class FieldSystem(object):
         self.snap = snap
         self.direct_fields = direct_fields
         self.derived_fields = {}
-        self._alias = {}
+        self.alias = {}
 
         # Initialize cache
         self.clear_cache()
 
-    def set_alias(self, norm, alias):
-        self._alias[alias] = norm
-
     def parse_alias(self, alias):
         norm = alias
-        while norm in self._alias:
-            norm = self._alias[norm]
+        while norm in self.alias:
+            norm = self.alias[norm]
         return norm
 
     def _load_direct_field(self, key):
@@ -52,8 +49,8 @@ class FieldSystem(object):
         self.derived_fields = dict_intersect(
             self.derived_fields, other.derived_fields
         )
-        self._alias = dict_intersect(
-            self._alias, other._alias
+        self.alias = dict_intersect(
+            self.alias, other.alias
         )
 
 
@@ -78,7 +75,7 @@ class ParticleSelector(FieldSystem):
 
         # Set aliases
         for fa, field in snap.spec.field_alias.items():
-            self.set_alias(field, fa)
+            self.alias[fa] = field
 
     @property
     def n_part(self):
