@@ -78,9 +78,19 @@ class ParticleSelector(FieldSystem):
     def __getitem__(self, key):
         if isinstance(key, np.ndarray) and key.dtype == bool:
             # Boolean masking
-            mask = self.mask.copy()
-            mask[mask] = key
-            return ParticleSelector(self.snap, mask)
+            mask = {}
+            left = 0
+            for ptype in self.snap.ptypes:
+                if ptype in self.mask:
+                    # Mask for each ptype
+                    mask[ptype] = self.mask[ptype].copy()
+                    n_true = mask[ptype].sum()
+                    mask_ptype = key[left:left + n_true]
+                    mask[ptype][mask[ptype]] = mask_ptype
+                    left += n_true
+            ps = ParticleSelector(self.snap, mask)
+            ps.derived_fields = self.derived_fields.copy()
+            return ps
         elif isinstance(key, str):
             return super().__getitem__(key)
         else:
@@ -107,6 +117,15 @@ class ParticleSelector(FieldSystem):
             for ptype in mask.keys():
                 mask[ptype] = operator(mask[ptype])
 
+        ps = ParticleSelector(snap, mask)
+        derived_fields = self.derived_fields.copy()
+        if other is not None:
+            common_derived_fields = {}
+            for key in other.derived_fields.keys():
+                if self.derived_fields[key] is other.derived_fields[key]:
+                    common_derived_fields[key] = self.derived_fields[key]
+            derived_fields = common_derived_fields
+        ps.derived_fields = derived_fields
         return ParticleSelector(snap, mask)
 
     def __and__(self, other):
