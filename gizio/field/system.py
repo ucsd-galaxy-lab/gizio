@@ -1,4 +1,5 @@
 from copy import deepcopy
+from inspect import getsource
 
 import numpy as np
 import unyt
@@ -36,6 +37,15 @@ class FieldSystem(object):
 
     def __delitem__(self, key):
         del self._cache[key]
+
+    def getsource(self, key):
+        if key not in self.derived_fields:
+            raise KeyError
+        func = self.derived_fields[key]
+        # To deal with functools.partial
+        while hasattr(func, 'func'):
+            func = getattr(func, 'func')
+        return getsource(func)
 
     def clear_cache(self):
         self._cache = {}

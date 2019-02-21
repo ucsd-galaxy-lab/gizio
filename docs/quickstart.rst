@@ -141,8 +141,7 @@ Derived field
 
 Particle selectors are field systems. Our field system supports derived field. As you might have noticed, the temperature field ``'t'`` is not a direct field on disk, but a derived field calculated from internal energy. The source code for the calculation could be examined by::
 
-    >>> import inspect
-    >>> print(inspect.getsource(gas.derived_fields['t']))
+    >>> print(gas.getsource('t'))
     def temperature(fs, f_ne='ne', f_u='u', f_z='z', i_he=1):
         # See the note following InternalEnergy on this page:
         # http://www.tapir.caltech.edu/~phopkins/Site/GIZMO_files/gizmo_documentation.html#snaps-reading
