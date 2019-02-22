@@ -16,6 +16,7 @@ from .unit import create_unit_registry
 
 class Snapshot:
     """Simulation snapshot."""
+
     def __init__(self, prefix, suffix='.hdf5', spec='gizmo'):
         # Determine snapshot paths
         prefix = Path(prefix).expanduser().resolve()
@@ -45,7 +46,8 @@ class Snapshot:
         # Set up unit system
         unit_system = self.spec.unit_system
         self.unit_registry = create_unit_registry(
-            a=self.header.a, h=self.header.h,
+            a=self.header.a,
+            h=self.header.h,
             solar_abundance=unit_system['SolarAbundance'],
             unit_length_cgs=unit_system['UnitLength_in_cm'],
             unit_mass_cgs=unit_system['UnitMass_in_g'],
@@ -117,6 +119,7 @@ class Snapshot:
 
 class Header:
     """Snapshot header."""
+
     def __init__(self, snap, spec):
         # Load raw headers
         raw = []
@@ -159,10 +162,12 @@ class Header:
 
     def attach_units(self, reg):
         """Attach proper units to attributes."""
+
         def attach(attr, unit):
             value = getattr(self, attr)
             if not hasattr(value, 'units'):
                 setattr(self, attr, value * unyt.Unit(unit, registry=reg))
+
         attach('time', 'Gyr')
         attach('box_size', 'code_length')
         attach('mass_tab', 'code_mass')
@@ -170,6 +175,7 @@ class Header:
 
 class ParticleTypeAccessor:
     """Accessor for individual particle types."""
+
     def __init__(self, snap):
         self._snap = snap
 
@@ -190,6 +196,7 @@ class ParticleTypeAccessor:
 
 class Specification:
     """Snapshot format specification."""
+
     def __init__(self, spec):
         # Load spec
         if os.path.isfile(spec):

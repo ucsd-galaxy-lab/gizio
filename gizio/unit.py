@@ -6,12 +6,14 @@ import unyt
 # Reference:
 # http://www.tapir.caltech.edu/~phopkins/Site/GIZMO_files/gizmo_documentation.html#snaps-units
 def create_unit_registry(
-        a=1.0, h=0.7, solar_abundance=0.02,
+        a=1.0,
+        h=0.7,
+        solar_abundance=0.02,
         unit_length_cgs=3.085678e21,
         unit_mass_cgs=1.989e43,
         unit_velocity_cgs=1e5,
         unit_magnetic_field_cgs=1.0,
-    ):
+):
     """Create a unit registry from unit system constants."""
     reg = unyt.UnitRegistry()
 

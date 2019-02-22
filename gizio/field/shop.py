@@ -5,8 +5,7 @@ from functools import partial
 def add_default_derived_fields(fs):
     """Add default derived fields to a field system."""
     fs.derived_fields['age'] = partial(
-        age, cosmological=fs.snap.is_cosmological()
-    )
+        age, cosmological=fs.snap.is_cosmological())
     fs.derived_fields['t'] = temperature
 
 

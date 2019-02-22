@@ -8,6 +8,7 @@ import unyt
 
 class FieldSystem:
     """Field system."""
+
     def __init__(self, snap, direct_fields):
         self.snap = snap
         self.direct_fields = direct_fields
@@ -57,20 +58,19 @@ class FieldSystem:
 
     def intersect(self, other):
         """Intersect with another field system."""
+
         def dict_intersect(d1, d2):
             return dict(set(d1.items()) & set(d2.items()))
 
         self.direct_fields = set(self.direct_fields) & set(other.direct_fields)
-        self.derived_fields = dict_intersect(
-            self.derived_fields, other.derived_fields
-        )
-        self.alias = dict_intersect(
-            self.alias, other.alias
-        )
+        self.derived_fields = dict_intersect(self.derived_fields,
+                                             other.derived_fields)
+        self.alias = dict_intersect(self.alias, other.alias)
 
 
 class ParticleSelector(FieldSystem):
     """Particle selector."""
+
     @classmethod
     def from_ptype(cls, snap, ptypes):
         """Create from a list of particle types."""
@@ -84,8 +84,7 @@ class ParticleSelector(FieldSystem):
     def __init__(self, snap, mask):
         # Specify direct fields
         direct_fields = set(
-            field for ptype, field in snap.keys if ptype in mask
-        )
+            field for ptype, field in snap.keys if ptype in mask)
 
         super().__init__(snap, direct_fields)
         self.mask = mask

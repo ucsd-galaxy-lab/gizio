@@ -7,5 +7,6 @@ dependencies:
   - h5py
   - numpy
   - unyt
-  # test requires
+  # develop requires
   - pylint
+  - yapf
