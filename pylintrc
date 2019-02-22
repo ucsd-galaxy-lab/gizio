@@ -1,0 +1,15 @@
+# See https://github.com/PyCQA/pylint/blob/master/pylintrc
+
+[MESSAGES CONTROL]
+
+disable=
+    too-few-public-methods,
+    too-many-arguments,
+    too-many-instance-attributes,
+
+[BASIC]
+
+# Allow short names
+argument-rgx=[a-z_][a-z0-9_]{0,30}$
+attr-rgx=[a-z_][a-z0-9_]{0,30}$
+variable-rgx=[a-z_][a-z0-9_]{0,30}$

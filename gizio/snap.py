@@ -1,3 +1,4 @@
+"""Objects representing simulation snapshot."""
 import json
 import os
 from pathlib import Path
@@ -13,7 +14,8 @@ from .field.system import ParticleSelector
 from .unit import create_unit_registry
 
 
-class Snapshot(object):
+class Snapshot:
+    """Simulation snapshot."""
     def __init__(self, prefix, suffix='.hdf5', spec='gizmo'):
         # Determine snapshot paths
         prefix = Path(prefix).expanduser().resolve()
@@ -31,8 +33,8 @@ class Snapshot(object):
         self.paths = [path for path in sorted(self.dir.glob(glob_pattern))]
         stems = [path.stem for path in self.paths]
         self.name = os.path.commonprefix(stems).rstrip('.')
-        # There must be at least one path
-        assert len(self.paths) > 0
+        # Check paths are not empty
+        assert self.paths
 
         # Load specification
         self.spec = Specification(spec)
@@ -73,12 +75,15 @@ class Snapshot(object):
         self.clear_cache()
 
     def is_cosmological(self):
+        """Whether this snapshot is cosmological."""
         return self.header.cosmo is not None
 
     def array(self, value, unit):
+        """Create an array with simulation unit registry."""
         return unyt.unyt_array(value, unit, registry=self.unit_registry)
 
     def quantity(self, value, unit):
+        """Create a quantity with simulation unit registry."""
         return unyt.unyt_quantity(value, unit, registry=self.unit_registry)
 
     def __getitem__(self, key):
@@ -106,10 +111,12 @@ class Snapshot(object):
         del self._cache[key]
 
     def clear_cache(self):
+        """Clear data cache."""
         self._cache = {}
 
 
-class Header(object):
+class Header:
+    """Snapshot header."""
     def __init__(self, snap, spec):
         # Load raw headers
         raw = []
@@ -151,6 +158,7 @@ class Header(object):
         self.mass_tab = get('mass_tab')
 
     def attach_units(self, reg):
+        """Attach proper units to attributes."""
         def attach(attr, unit):
             value = getattr(self, attr)
             if not hasattr(value, 'units'):
@@ -160,7 +168,8 @@ class Header(object):
         attach('mass_tab', 'code_mass')
 
 
-class ParticleTypeAccessor(object):
+class ParticleTypeAccessor:
+    """Accessor for individual particle types."""
     def __init__(self, snap):
         self._snap = snap
 
@@ -179,7 +188,8 @@ class ParticleTypeAccessor(object):
         return getattr(self, pa)
 
 
-class Specification(object):
+class Specification:
+    """Snapshot format specification."""
     def __init__(self, spec):
         # Load spec
         if os.path.isfile(spec):

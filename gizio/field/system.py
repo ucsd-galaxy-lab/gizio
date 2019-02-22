@@ -1,3 +1,4 @@
+"""Field system objects."""
 from copy import deepcopy
 from inspect import getsource
 
@@ -5,7 +6,8 @@ import numpy as np
 import unyt
 
 
-class FieldSystem(object):
+class FieldSystem:
+    """Field system."""
     def __init__(self, snap, direct_fields):
         self.snap = snap
         self.direct_fields = direct_fields
@@ -16,12 +18,13 @@ class FieldSystem(object):
         self.clear_cache()
 
     def parse_alias(self, alias):
+        """Parse alias field names."""
         norm = alias
         while norm in self.alias:
             norm = self.alias[norm]
         return norm
 
-    def _load_direct_field(self, key):
+    def _load_direct_field(self, field):
         raise NotImplementedError
 
     def __getitem__(self, key):
@@ -39,6 +42,7 @@ class FieldSystem(object):
         del self._cache[key]
 
     def getsource(self, key):
+        """Get source code for derived fields."""
         if key not in self.derived_fields:
             raise KeyError
         func = self.derived_fields[key]
@@ -48,10 +52,11 @@ class FieldSystem(object):
         return getsource(func)
 
     def clear_cache(self):
+        """Clear data cache."""
         self._cache = {}
 
     def intersect(self, other):
-
+        """Intersect with another field system."""
         def dict_intersect(d1, d2):
             return dict(set(d1.items()) & set(d2.items()))
 
@@ -65,8 +70,10 @@ class FieldSystem(object):
 
 
 class ParticleSelector(FieldSystem):
+    """Particle selector."""
     @classmethod
     def from_ptype(cls, snap, ptypes):
+        """Create from a list of particle types."""
         mask = {}
         for ptype in ptypes:
             iptype = snap.spec.ptypes.index(ptype)
@@ -89,6 +96,7 @@ class ParticleSelector(FieldSystem):
 
     @property
     def n_part(self):
+        """Number of particles selected."""
         return sum([ma.sum() for ma in self.mask.values()])
 
     def _load_direct_field(self, field):
@@ -114,10 +122,9 @@ class ParticleSelector(FieldSystem):
             ps.clear_cache()
             ps.mask = mask
             return ps
-        elif isinstance(key, str):
+        if isinstance(key, str):
             return super().__getitem__(key)
-        else:
-            raise KeyError
+        raise KeyError
 
     # Boolean operations
 
@@ -136,12 +143,12 @@ class ParticleSelector(FieldSystem):
                 mask[ptype] = operator(mask[ptype], other.mask[ptype])
         else:
             # Unary operator case
-            for ptype in mask.keys():
-                mask[ptype] = operator(mask[ptype])
+            for pmask in mask.values():
+                pmask = operator(pmask)
 
         ps = deepcopy(self)
         ps.clear_cache()
-        ps.mask =mask
+        ps.mask = mask
         if other is not None:
             ps.intersect(other)
         return ps

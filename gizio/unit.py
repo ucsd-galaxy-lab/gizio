@@ -1,3 +1,4 @@
+"""Unit-related functions."""
 import numpy as np
 import unyt
 
@@ -11,6 +12,7 @@ def create_unit_registry(
         unit_velocity_cgs=1e5,
         unit_magnetic_field_cgs=1.0,
     ):
+    """Create a unit registry from unit system constants."""
     reg = unyt.UnitRegistry()
 
     def def_unit(symbol, value):
