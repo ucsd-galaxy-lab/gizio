@@ -1,0 +1,11 @@
+channels:
+  - conda-forge
+dependencies:
+  - python=3
+  # install requires
+  - astropy
+  - h5py
+  - numpy
+  - unyt
+  # test requires
+  - pylint
