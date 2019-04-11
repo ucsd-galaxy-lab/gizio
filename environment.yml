@@ -8,5 +8,5 @@ dependencies:
   - numpy
   - unyt
   # develop requires
+  - black
   - pylint
-  - yapf

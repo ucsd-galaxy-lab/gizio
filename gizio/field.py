@@ -43,8 +43,9 @@ class FieldSystem:
     def join(self, other):
         new_field_system = deepcopy(self)
         new_field_system.clear_cache()
-        keys_to_unregister = [key for key in new_field_system.keys()
-                              if key not in other]
+        keys_to_unregister = [
+            key for key in new_field_system.keys() if key not in other
+        ]
         for key in keys_to_unregister:
             new_field_system.unregister(key)
         return new_field_system
@@ -115,7 +116,7 @@ class ParticleSelector(FieldSystem):
             if mask is not None:
                 # Update one mask array
                 n_part = mask.sum()
-                mask[mask] = key[left:left + n_part]
+                mask[mask] = key[left : left + n_part]
                 left += n_part
         ps = type(self)(self.snap, masks)
         return ps
@@ -127,6 +128,7 @@ class ParticleSelector(FieldSystem):
                 if mask is not None:
                     data += [self.snap[ptype, fname][mask]]
             return unyt.array.uconcatenate(data)
+
         self.register(key, load_direct_field)
 
     # Set-like operations
@@ -136,12 +138,12 @@ class ParticleSelector(FieldSystem):
         assert self.snap is other.snap
 
         # Parse operator
-        if operator == 'sub':
+        if operator == "sub":
             # Subtraction
             operator = lambda a, b: a ^ (a & b)
         else:
             # Built-in numpy boolean operations
-            operator = getattr(np, 'logical_' + operator)
+            operator = getattr(np, "logical_" + operator)
 
         # Initialize object
         obj = self
@@ -170,31 +172,31 @@ class ParticleSelector(FieldSystem):
     ## | union
 
     def __or__(self, other):
-        return self._set_op('or', other, inplace=False)
+        return self._set_op("or", other, inplace=False)
 
     def __ior__(self, other):
-        self._set_op('or', other, inplace=True)
+        self._set_op("or", other, inplace=True)
 
     ## & intersection
 
     def __and__(self, other):
-        return self._set_op('and', other, inplace=False)
+        return self._set_op("and", other, inplace=False)
 
     def __iand__(self, other):
-        self._set_op('and', other, inplace=True)
+        self._set_op("and", other, inplace=True)
 
     ## - difference
 
     def __sub__(self, other):
-        return self._set_op('sub', other, inplace=False)
+        return self._set_op("sub", other, inplace=False)
 
     def __isub__(self, other):
-        self._set_op('sub', other, inplace=True)
+        self._set_op("sub", other, inplace=True)
 
     ## ^ symmetric difference
 
     def __xor__(self, other):
-        return self._set_op('xor', other, inplace=False)
+        return self._set_op("xor", other, inplace=False)
 
     def __ixor__(self, other):
-        self._set_op('xor', other, inplace=True)
+        self._set_op("xor", other, inplace=True)

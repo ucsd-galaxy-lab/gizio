@@ -7,6 +7,10 @@ disable=
     too-many-arguments,
     too-many-instance-attributes,
 
+[FORMAT]
+
+max-line-length=79
+
 [BASIC]
 
 # Allow short names

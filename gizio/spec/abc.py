@@ -8,6 +8,7 @@ import unyt
 
 class Specification(abc.ABC):
     """Snapshot format specification."""
+
     HEADER_BLOCK = None
     HEADER_N_PART = None
     HEADER_PER_FILE = None
@@ -44,7 +45,7 @@ class Specification(abc.ABC):
     def read_header(self, snap):
         headers = []
         for path in snap.paths:
-            with h5py.File(path, 'r') as f:
+            with h5py.File(path, "r") as f:
                 headers += [dict(f[self.HEADER_BLOCK].attrs)]
 
         header = {}
@@ -62,30 +63,32 @@ class Specification(abc.ABC):
     # http://www.tapir.caltech.edu/~phopkins/Site/GIZMO_files/gizmo_documentation.html#snaps-units
     def create_unit_registry(self, a, h):
         """Create a unit registry from unit system constants."""
-        solar_abundance = self.UNIT_SPEC['SolarAbundance']
-        unit_length_cgs = self.UNIT_SPEC['UnitLength_in_cm']
-        unit_mass_cgs = self.UNIT_SPEC['UnitMass_in_g']
-        unit_velocity_cgs = self.UNIT_SPEC['UnitVelocity_in_cm_per_s']
-        unit_magnetic_field_cgs = self.UNIT_SPEC['UnitMagneticField_in_gauss']
+        solar_abundance = self.UNIT_SPEC["SolarAbundance"]
+        unit_length_cgs = self.UNIT_SPEC["UnitLength_in_cm"]
+        unit_mass_cgs = self.UNIT_SPEC["UnitMass_in_g"]
+        unit_velocity_cgs = self.UNIT_SPEC["UnitVelocity_in_cm_per_s"]
+        unit_magnetic_field_cgs = self.UNIT_SPEC["UnitMagneticField_in_gauss"]
         reg = unyt.UnitRegistry()
 
         def def_unit(symbol, value):
             value = unyt.unyt_quantity(*value, registry=reg)
-            base_value = float(value.in_base(unit_system='mks'))
+            base_value = float(value.in_base(unit_system="mks"))
             dimensions = value.units.dimensions
             reg.add(symbol, base_value, dimensions)
 
-        def_unit('a', (a, ''))
-        def_unit('h', (h, ''))
-        def_unit('code_metallicity', (solar_abundance, ''))
+        def_unit("a", (a, ""))
+        def_unit("h", (h, ""))
+        def_unit("code_metallicity", (solar_abundance, ""))
 
-        def_unit('code_length', (unit_length_cgs / h * a, 'cm'))
-        def_unit('code_mass', (unit_mass_cgs / h, 'g'))
-        def_unit('code_velocity', (unit_velocity_cgs * np.sqrt(a), 'cm / s'))
-        def_unit('code_magnetic_field', (unit_magnetic_field_cgs, 'gauss'))
+        def_unit("code_length", (unit_length_cgs / h * a, "cm"))
+        def_unit("code_mass", (unit_mass_cgs / h, "g"))
+        def_unit("code_velocity", (unit_velocity_cgs * np.sqrt(a), "cm / s"))
+        def_unit("code_magnetic_field", (unit_magnetic_field_cgs, "gauss"))
 
-        def_unit('code_specific_energy', (unit_velocity_cgs**2, '(cm / s)**2'))
-        def_unit('code_time', (1, 'code_length / code_velocity'))
+        def_unit(
+            "code_specific_energy", (unit_velocity_cgs ** 2, "(cm / s)**2")
+        )
+        def_unit("code_time", (1, "code_length / code_velocity"))
 
         return reg
 

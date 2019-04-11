@@ -1,15 +1,8 @@
 from setuptools import find_packages, setup
 
 setup(
-    name='gizio',
+    name="gizio",
     packages=find_packages(),
-    package_data={
-        '': ['*.json'],
-    },
-    install_requires=[
-        'astropy',
-        'h5py',
-        'numpy',
-        'unyt',
-    ]
+    package_data={"": ["*.json"]},
+    install_requires=["astropy", "h5py", "numpy", "unyt"],
 )
