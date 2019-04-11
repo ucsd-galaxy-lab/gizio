@@ -2,16 +2,13 @@
 import json
 import os
 from pathlib import Path
-from pkg_resources import resource_string
 
-from astropy.cosmology import LambdaCDM
 import h5py
 import numpy as np
 import unyt
 
-from .field.shop import add_default_derived_fields
-from .field.system import ParticleSelector
-from .unit import create_unit_registry
+from .field import ParticleSelector
+from .spec import SPEC_REGISTRY
 
 
 class Snapshot:
@@ -37,48 +34,30 @@ class Snapshot:
         # Check paths are not empty
         assert self.paths
 
-        # Load specification
-        self.spec = Specification(spec)
-
-        # Load header
-        self.header = Header(self, self.spec.header)
-
-        # Set up unit system
-        unit_system = self.spec.unit_system
-        self.unit_registry = create_unit_registry(
-            a=self.header.a,
-            h=self.header.h,
-            solar_abundance=unit_system['SolarAbundance'],
-            unit_length_cgs=unit_system['UnitLength_in_cm'],
-            unit_mass_cgs=unit_system['UnitMass_in_g'],
-            unit_velocity_cgs=unit_system['UnitVelocity_in_cm_per_s'],
-            unit_magnetic_field_cgs=unit_system['UnitMagneticField_in_gauss'],
-        )
-        self.header.attach_units(self.unit_registry)
+        # Apply spec to extract meta info
+        if isinstance(spec, str):
+            spec = SPEC_REGISTRY[spec]()
+        header, shape, cosmology, unit_registry = spec.apply_to(self)
+        self.spec = spec
+        self.header = header
+        self.shape = shape
+        self.cosmology = cosmology
+        self.unit_registry = unit_registry
 
         # Detect available keys
-        self.keys = []
-        with h5py.File(self.paths[0], 'r') as h5f:
+        keys = []
+        with h5py.File(self.paths[0], 'r') as f:
             for ptype in self.spec.ptypes:
-                if ptype in h5f:
-                    for field in h5f[ptype].keys():
-                        self.keys += [(ptype, field)]
-        # Record detected ptypes in spec order
-        ptypes = set(ptype for ptype, _ in self.keys)
-        self.ptypes = [ptype for ptype in self.spec.ptypes if ptype in ptypes]
-        # Record detected fields in alphabetic order
-        fields = set(field for _, field in self.keys)
-        self.fields = sorted(fields)
+                if ptype in f:
+                    for field in f[ptype].keys():
+                        keys += [(ptype, field)]
+        self.keys = keys
 
         # Set up particle type accessor
         self.pt = ParticleTypeAccessor(self)
 
         # Initialize cache
-        self.clear_cache()
-
-    def is_cosmological(self):
-        """Whether this snapshot is cosmological."""
-        return self.header.cosmo is not None
+        self._cache = {}
 
     def array(self, value, unit):
         """Create an array with simulation unit registry."""
@@ -117,114 +96,14 @@ class Snapshot:
         self._cache = {}
 
 
-class Header:
-    """Snapshot header."""
-
-    def __init__(self, snap, spec):
-        # Load raw headers
-        raw = []
-        for path in snap.paths:
-            with h5py.File(path, 'r') as h5f:
-                raw += [dict(h5f[spec['group']].attrs)]
-        self.raw = raw
-
-        def get(key, i=0):
-            return raw[i][spec['mapping'][key]]
-
-        # File and particle
-        self.n_file = get('n_file')
-        self.n_part = [get('n_part', i) for i in range(self.n_file)]
-        self.n_part_tot = get('n_part_tot')
-
-        # Time and cosmology
-        self.a = get('time')
-        self.z = get('redshift')
-        self.h = get('hubble')
-        if np.isclose(self.a, 1 / (1 + self.z)):
-            self.cosmo = LambdaCDM(self.h * 100, get('Om0'), get('OmL'))
-            self.time = self.cosmo.age(self.z).to_value('Gyr')
-        else:
-            self.cosmo = None
-            self.time = self.a / self.h  # in Gyr
-            self.a = 1.0
-
-        # Flags
-        self.flag = {}
-        prefix = spec['flag_prefix']
-        for key in raw[0].keys():
-            if key.startswith(prefix):
-                k = key[len(prefix):]
-                self.flag[k] = raw[0][key]
-
-        # Other quantities
-        self.box_size = get('box_size')
-        self.mass_tab = get('mass_tab')
-
-    def attach_units(self, reg):
-        """Attach proper units to attributes."""
-
-        def attach(attr, unit):
-            value = getattr(self, attr)
-            if not hasattr(value, 'units'):
-                setattr(self, attr, value * unyt.Unit(unit, registry=reg))
-
-        attach('time', 'Gyr')
-        attach('box_size', 'code_length')
-        attach('mass_tab', 'code_mass')
-
-
 class ParticleTypeAccessor:
     """Accessor for individual particle types."""
 
     def __init__(self, snap):
-        self._snap = snap
-
-        def init_ps(ptypes):
-            ps = ParticleSelector.from_ptype(snap, ptypes)
-            add_default_derived_fields(ps)
-            return ps
-
-        for pa, ptype in snap.spec.ptype_alias.items():
-            if ptype in snap.ptypes:
-                setattr(self, pa, init_ps([ptype]))
-        self.all = init_ps(snap.ptypes)
-
-    def __getitem__(self, key):
-        pa = list(self._snap.ptypes_alias.keys())[key]
-        return getattr(self, pa)
-
-
-class Specification:
-    """Snapshot format specification."""
-
-    def __init__(self, spec):
-        # Load spec
-        if os.path.isfile(spec):
-            # Load from user file
-            with open(spec, 'r') as f:
-                spec = f.read()
-        else:
-            # Load from builtin file
-            spec = resource_string(__name__, f'spec/h5/{spec}.json')
-        # Parse JSON string
-        spec = json.loads(spec)
-
-        # Header and unit system
-        self.header = spec['header']
-        self.unit_system = spec['unit_system']
-
-        # Particle types
-        self.ptypes = []
-        self.ptype_alias = {}
-        for ptype, pa in spec['particle_types']:
-            self.ptypes += [ptype]
-            self.ptype_alias[pa] = ptype
-
-        # Fields
-        self.fields = []
-        self.field_alias = {}
-        self.field_units = {}
-        for field, fa, unit in spec['fields']:
-            self.fields += [field]
-            self.field_alias[fa] = field
-            self.field_units[field] = unit
+        for ptype, abbr in snap.spec.ptype_abbrs.items():
+            if snap.shape[ptype] > 0:
+                ps = ParticleSelector.from_ptypes(snap, [ptype])
+                snap.spec.register_derived_fields(ps, abbr)
+                setattr(self, abbr, ps)
+        self.all = ParticleSelector.from_ptypes(snap, snap.spec.ptypes)
+        snap.spec.register_derived_fields(self.all, 'all')
