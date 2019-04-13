@@ -1,2 +1,2 @@
-"""gizio is a light-weight Python package for GIZMO snapshot IO."""
+"""The gizio package."""
 from .snap import Snapshot

@@ -1,14 +1,36 @@
-"""Field system objects."""
+"""Field system."""
+from copy import copy
 from copy import deepcopy
-from functools import partial
-from inspect import getsource
 
 import numpy as np
 import unyt
 
 
 class FieldSystem:
-    """Field system."""
+    """Field system of a snapshot.
+
+    A field system is a set of fields potentially dependant on each other.
+    A function is associated with each field to compute it in a lazy mannar.
+
+    .. describe:: fs[key]
+
+        Retrieve the field. Compute and create cache if not existing before.
+
+    .. describe:: del fs[key]
+
+        Removed the field cache.
+
+    Parameters
+    ----------
+    snap : Snapshot
+        The snapshot to associate with.
+
+    Attributes
+    ----------
+    snap : Snapshot
+        The snapshot associated with.
+
+    """
 
     def __init__(self, snap):
         self.snap = snap
@@ -16,13 +38,32 @@ class FieldSystem:
         self._data_cache = {}
 
     def register(self, key, func):
+        """Register a field.
+
+        Parameters
+        ----------
+        key : str
+            The key to retrieve the field.
+        func : typing.Callable
+            The function to compute the field.
+
+        """
         self._func_registry[key] = func
 
     def unregister(self, key):
+        """Unregister a field.
+
+        Parameters
+        ----------
+        key : str
+            The key of the field.
+
+        """
         del self._func_registry[key]
         del self[key]
 
     def keys(self):
+        """Available fields."""
         return self._func_registry.keys()
 
     def __contains__(self, key):
@@ -38,27 +79,25 @@ class FieldSystem:
             del self._data_cache[key]
 
     def clear_cache(self):
+        """Clear all field caches."""
         self._data_cache = {}
-
-    def join(self, other):
-        new_field_system = deepcopy(self)
-        new_field_system.clear_cache()
-        keys_to_unregister = [
-            key for key in new_field_system.keys() if key not in other
-        ]
-        for key in keys_to_unregister:
-            new_field_system.unregister(key)
-        return new_field_system
 
 
 class ParticleSelector(FieldSystem):
-    """Particle selector."""
+    """Particle selector.
+
+    .. describe:: len(ps)
+
+        Return the number of selected particles.
+
+    """
 
     @classmethod
     def from_ptypes(cls, snap, ptypes):
+        """Create particle selector for specified ptypes."""
         spec_ptypes = deepcopy(snap.spec.ptypes)
         masks = []
-        for i, ptype in enumerate(spec_ptypes):
+        for ptype in spec_ptypes:
             if ptype in ptypes:
                 n_part = snap.shape[ptype]
                 mask = np.ones(n_part, dtype=bool)
@@ -85,8 +124,12 @@ class ParticleSelector(FieldSystem):
         self.masks = masks
         self._normalize()
 
+    def __copy__(self):
+        ps = ParticleSelector(self.snap, deepcopy(self.masks))
+        ps._func_registry = deepcopy(self._func_registry)
+        return ps
+
     def __len__(self):
-        """The total number of selected particles."""
         return sum(mask.sum() for mask in self.masks if mask is not None)
 
     def _normalize(self):
@@ -110,23 +153,36 @@ class ParticleSelector(FieldSystem):
     def _update_mask(self, key):
         assert len(key) == len(self)
         # Create new ParticleMask
-        masks = deepcopy(self.masks)
+        ps = copy(self)
         left = 0
-        for mask in masks:
+        for mask in ps.masks:
             if mask is not None:
                 # Update one mask array
                 n_part = mask.sum()
                 mask[mask] = key[left : left + n_part]
                 left += n_part
-        ps = type(self)(self.snap, masks)
         return ps
 
-    def register_direct_field(self, key, fname):
+    def register_direct_field(self, key, field):
+        """Register a direct field.
+
+        Parameters
+        ----------
+        key : str
+            The key to retrieve the field.
+        field : str
+            The raw field name.
+
+        """
+
         def load_direct_field(field_system):
             data = []
-            for ptype, mask in zip(self.snap.spec.ptypes, self.masks):
+            snap = field_system.snap
+            ptypes = snap.spec.ptypes
+            masks = field_system.masks
+            for ptype, mask in zip(ptypes, masks):
                 if mask is not None:
-                    data += [self.snap[ptype, fname][mask]]
+                    data += [snap[ptype, field][mask]]
             return unyt.array.uconcatenate(data)
 
         self.register(key, load_direct_field)
@@ -134,9 +190,6 @@ class ParticleSelector(FieldSystem):
     # Set-like operations
 
     def _set_op(self, operator, other, inplace):
-        # Validate the other operand
-        assert self.snap is other.snap
-
         # Parse operator
         if operator == "sub":
             # Subtraction
@@ -149,7 +202,10 @@ class ParticleSelector(FieldSystem):
         obj = self
         if not inplace:
             obj = deepcopy(obj)
-        obj = obj.join(other)
+        obj.clear_cache()
+        keys_to_unregister = [key for key in obj.keys() if key not in other]
+        for key in keys_to_unregister:
+            obj.unregister(key)
 
         # Evaluate operation
         from itertools import starmap

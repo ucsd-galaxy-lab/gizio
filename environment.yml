@@ -9,4 +9,9 @@ dependencies:
   - unyt
   # develop requires
   - black
+  - jupyterlab
+  - nbconvert
+  - nbsphinx
   - pylint
+  - sphinx
+  - sphinxcontrib-apidoc

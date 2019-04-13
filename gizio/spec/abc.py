@@ -1,3 +1,4 @@
+"""Specification format."""
 import abc
 from collections import OrderedDict
 
@@ -35,14 +36,15 @@ class Specification(abc.ABC):
             self.field_units[raw] = unit
 
     def apply_to(self, snap):
-        header = self.read_header(snap)
-        shape = self.get_shape(header)
-        a, h, cosmology = self.get_cosmology(header)
-        unit_registry = self.create_unit_registry(a, h)
-        self.add_header_units(header, unit_registry)
+        """Apply specification to snapshot."""
+        header = self._read_header(snap)
+        shape = self._get_shape(header)
+        a, h, cosmology = self._get_cosmology(header)
+        unit_registry = self._create_unit_registry(a, h)
+        self._add_header_units(header, unit_registry)
         return header, shape, cosmology, unit_registry
 
-    def read_header(self, snap):
+    def _read_header(self, snap):
         headers = []
         for path in snap.paths:
             with h5py.File(path, "r") as f:
@@ -56,12 +58,12 @@ class Specification(abc.ABC):
                 header[alias] = headers[0][key]
         return header
 
-    def get_shape(self, header):
+    def _get_shape(self, header):
         return OrderedDict(zip(self.ptypes, header[self.HEADER_N_PART]))
 
     # Reference:
     # http://www.tapir.caltech.edu/~phopkins/Site/GIZMO_files/gizmo_documentation.html#snaps-units
-    def create_unit_registry(self, a, h):
+    def _create_unit_registry(self, a, h):
         """Create a unit registry from unit system constants."""
         solar_abundance = self.UNIT_SPEC["SolarAbundance"]
         unit_length_cgs = self.UNIT_SPEC["UnitLength_in_cm"]
@@ -93,13 +95,14 @@ class Specification(abc.ABC):
         return reg
 
     @abc.abstractmethod
-    def get_cosmology(self, header):
+    def _get_cosmology(self, header):
         pass
 
     @abc.abstractmethod
-    def add_header_units(self, header, unit_registry):
+    def _add_header_units(self, header, unit_registry):
         pass
 
     @abc.abstractmethod
     def register_derived_fields(self, field_system, ptype):
+        """Register derived fields."""
         pass

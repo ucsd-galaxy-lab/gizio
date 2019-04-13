@@ -1,3 +1,4 @@
-from .gizmo import GizmoSpecification
+"""Snapshot format specification."""
+from .gizmo import GIZMOSpecification
 
-SPEC_REGISTRY = {"gizmo": GizmoSpecification}
+SPEC_REGISTRY = {"gizmo": GIZMOSpecification}

@@ -1,14 +1,21 @@
 # Local
+.vscode/
+data/
+docs/api/
 env/
 
-# Reference: https://github.com/github/gitignore/blob/master/Python.gitignore
-# Add rules to this file as needed
+# Take from https://github.com/github/gitignore/blob/master/Python.gitignore
+# Expand as needed
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
 
 # Distribution / packaging
+pip-wheel-metadata/
 *.egg-info/
 
 # Sphinx documentation
 docs/_build/
+
+# Jupyter Notebook
+.ipynb_checkpoints

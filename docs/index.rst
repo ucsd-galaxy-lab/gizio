@@ -1,18 +1,12 @@
-Welcome to gizio's documentation!
-=================================
+gizio: GIZMO Snapshot IO
+========================
 
-``gizio`` is a light-weight Python package for GIZMO snapshot IO.
+`gizio <https://github.com/qobilidop/gizio>`_ is a light-weight Python package for `GIZMO <http://www.tapir.caltech.edu/~phopkins/Site/GIZMO.html>`_ snapshot IO.
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+    :maxdepth: 2
 
-   quickstart.rst
-   installation.rst
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+    about
+    example
+    API <api/gizio>
+    dev

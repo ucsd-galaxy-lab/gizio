@@ -1,5 +1,4 @@
-"""Objects representing simulation snapshot."""
-import json
+"""Simulation snapshot representation."""
 import os
 from pathlib import Path
 
@@ -12,7 +11,44 @@ from .spec import SPEC_REGISTRY
 
 
 class Snapshot:
-    """Simulation snapshot."""
+    """Simulation snapshot.
+
+    Fields could be loaded lazily through a dictionary interface:
+
+    >>> snap[ptype, field]
+
+    Parameters
+    ----------
+    prefix : str or pathlib.Path
+    suffix : str, optional
+        Snapshot file suffix. (default: ".hdf5")
+    spec : str or Specification, optional
+        Snapshot format specification. If given as str, a built-in
+        specification will be used. (default: "gizmo")
+
+    Attributes
+    ----------
+    paths : list
+        Snapshot file paths.
+    name : str
+        Snapshot name.
+    spec : Specification
+        Snapshot format specification.
+    header : dict
+        Snapshot header.
+    shape : collections.OrderedDict
+        Data shape composed of {ptype_name: n_part} entries, in the
+        specification ptypes order.
+    cosmology : astropy.cosmology.LambdaCDM
+        An astropy cosmology calculator.
+    unit_registry : unyt.unit_registry.UnitRegistry
+        Simulation unit registry.
+    keys : list[tuple[str, str]]
+        List of field keys.
+    pt : dict[str, str]
+        Dictionary of particle type selectors.
+
+    """
 
     def __init__(self, prefix, suffix=".hdf5", spec="gizmo"):
         # Determine snapshot paths
@@ -53,19 +89,58 @@ class Snapshot:
                         keys += [(ptype, field)]
         self.keys = keys
 
-        # Set up particle type accessor
-        self.pt = ParticleTypeAccessor(self)
+        # Set up particle type accessors
+        self.pt = {}
+        for ptype, abbr in self.spec.ptype_abbrs.items():
+            if self.shape[ptype] > 0:
+                ps = ParticleSelector.from_ptypes(self, [ptype])
+                self.spec.register_derived_fields(ps, abbr)
+                self.pt[abbr] = ps
+        self.pt["all"] = ParticleSelector.from_ptypes(self, self.spec.ptypes)
+        self.spec.register_derived_fields(self.pt["all"], "all")
 
         # Initialize cache
         self._cache = {}
 
     def array(self, value, unit):
-        """Create an array with simulation unit registry."""
+        """Create an array with simulation unit registry.
+
+        Parameters
+        ----------
+        value : typing.Iterable
+            The value.
+        unit : str
+            The unit.
+
+        Returns
+        -------
+        unyt.array.unyt_array
+            An array with unit.
+
+        """
         return unyt.unyt_array(value, unit, registry=self.unit_registry)
 
     def quantity(self, value, unit):
-        """Create a quantity with simulation unit registry."""
+        """Create a quantity with simulation unit registry.
+
+        Parameters
+        ----------
+        value : float
+            The value.
+        unit : str
+            The unit.
+
+        Returns
+        -------
+        unyt.array.unyt_quantity
+            A quantity with unit.
+
+        """
         return unyt.unyt_quantity(value, unit, registry=self.unit_registry)
+
+    def clear_cache(self):
+        """Clear all field caches."""
+        self._cache = {}
 
     def __getitem__(self, key):
         # Load from file if cache doesn't exist
@@ -90,20 +165,3 @@ class Snapshot:
     def __delitem__(self, key):
         # Delete cache
         del self._cache[key]
-
-    def clear_cache(self):
-        """Clear data cache."""
-        self._cache = {}
-
-
-class ParticleTypeAccessor:
-    """Accessor for individual particle types."""
-
-    def __init__(self, snap):
-        for ptype, abbr in snap.spec.ptype_abbrs.items():
-            if snap.shape[ptype] > 0:
-                ps = ParticleSelector.from_ptypes(snap, [ptype])
-                snap.spec.register_derived_fields(ps, abbr)
-                setattr(self, abbr, ps)
-        self.all = ParticleSelector.from_ptypes(snap, snap.spec.ptypes)
-        snap.spec.register_derived_fields(self.all, "all")

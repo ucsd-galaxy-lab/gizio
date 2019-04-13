@@ -1,4 +1,4 @@
-"""GIZMO snapshot specification."""
+"""GIZMO specification."""
 from astropy.cosmology import LambdaCDM
 import numpy as np
 import unyt
@@ -6,7 +6,9 @@ import unyt
 from .abc import Specification
 
 
-class GizmoSpecification(Specification):
+class GIZMOSpecification(Specification):
+    """GIZMO snapshot format specification."""
+
     HEADER_BLOCK = "Header"
     HEADER_N_PART = "n_part"
     HEADER_PER_FILE = ["NumPart_ThisFile"]
@@ -70,7 +72,7 @@ class GizmoSpecification(Specification):
         ("BH_Mass_AlphaDisk", "mad", "code_mass"),
     ]
 
-    def get_cosmology(self, header):
+    def _get_cosmology(self, header):
         h = header["h"]
         cosmology = LambdaCDM(h * 100, header["Om0"], header["OmL"])
 
@@ -89,7 +91,7 @@ class GizmoSpecification(Specification):
 
         return a, h, cosmology
 
-    def add_header_units(self, header, unit_registry):
+    def _add_header_units(self, header, unit_registry):
         def attach_unit(key, unit):
             header[key] *= unyt.Unit(unit, registry=unit_registry)
 
@@ -106,7 +108,7 @@ class GizmoSpecification(Specification):
 
 
 def compute_age(field_system):
-    """Calculate age from formation time."""
+    """Compute age from formation time."""
     # See the note following StellarFormationTime on this page:
     # http://www.tapir.caltech.edu/~phopkins/Site/GIZMO_files/gizmo_documentation.html#snaps-reading
     sft = field_system["sft"].d
@@ -124,7 +126,7 @@ def compute_age(field_system):
 
 
 def compute_temperature(field_system):
-    """Calculate temperature from internal energy."""
+    """Compute temperature from internal energy."""
     # See the note following InternalEnergy on this page:
     # http://www.tapir.caltech.edu/~phopkins/Site/GIZMO_files/gizmo_documentation.html#snaps-reading
     ne = field_system["ne"]

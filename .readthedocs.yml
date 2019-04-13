@@ -1,0 +1,15 @@
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html
+
+version: 2
+
+sphinx:
+  configuration: docs/conf.py
+
+python:
+   version: 3.7
+   install:
+      - method: pip
+        path: .
+
+conda:
+  environment: environment.yml
