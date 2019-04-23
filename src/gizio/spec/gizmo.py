@@ -13,7 +13,7 @@ class GIZMOSpecification(Specification):
     HEADER_N_PART = "n_part"
     HEADER_PER_FILE = ["NumPart_ThisFile"]
     HEADER_SPEC = [
-        # (raw, abbr)
+        # (name, key)
         ("Time", "time"),
         ("NumFilesPerSnapshot", "n_file"),
         ("MassTable", "mass_tab"),
@@ -38,7 +38,7 @@ class GIZMOSpecification(Specification):
         "UnitMagneticField_in_gauss": 1.0,
     }
     PTYPE_SPEC = [
-        # (raw, abbr)
+        # (name, key)
         ("PartType0", "gas"),
         ("PartType1", "hdm"),
         ("PartType2", "ldm"),
@@ -47,7 +47,7 @@ class GIZMOSpecification(Specification):
         ("PartType5", "bh"),
     ]
     FIELD_SPEC = [
-        # (raw, abbr, unit)
+        # (name, key, unit)
         ("Coordinates", "p", "code_length"),
         ("Velocities", "v", "code_velocity"),
         ("ParticleIDs", "id", ""),

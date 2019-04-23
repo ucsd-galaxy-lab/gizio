@@ -13,5 +13,7 @@ dependencies:
   - nbconvert
   - nbsphinx
   - pylint
+  - pytest
   - sphinx
   - sphinxcontrib-apidoc
+  - tox
