@@ -13,15 +13,19 @@ help:
 # env
 
 .PHONY: init
-init: env
+init: env install
 env:
 	conda env create -f environment.yml -p env
+
+.PHONY: install
+install: env
+	mv pyproject.toml pyproject.toml.backup
 	env/bin/pip install -e .
+	mv pyproject.toml.backup pyproject.toml
 
 .PHONY: up
-up:
+up: env install
 	conda env update -f environment.yml -p env
-	env/bin/pip install -e .
 
 # code
 
@@ -34,8 +38,8 @@ lint:
 	pylint src
 
 .PHONY: test
-test: data
-	pytest tests
+test: data interpreters
+	PATH=$(PWD)/interpreter:$(PATH) tox
 
 # doc
 
@@ -72,3 +76,11 @@ data: data/FIRE_M12i_ref11
 data/FIRE_M12i_ref11:
 	mkdir -p data
 	cd data && curl http://yt-project.org/data/FIRE_M12i_ref11.tar.gz | tar xz
+
+PY_VERS = 3.6 3.7
+INTERPRETERS = $(addprefix interpreter/python,$(PY_VERS))
+.PHONY: interpreters
+interpreters: $(INTERPRETERS)
+interpreter/python%:
+	conda create -p interpreter/envs/python$* python=$*
+	cd interpreter && ln -s envs/python$*/bin/python$*

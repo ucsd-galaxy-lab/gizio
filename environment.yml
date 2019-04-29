@@ -8,12 +8,13 @@ dependencies:
   - numpy
   - unyt
   # develop
-  - tox
   ## code
   - black
   - jupyterlab
   - pylint
   - pytest
+  - tox
+  - virtualenv
   ## doc
   - m2r
   - nbconvert

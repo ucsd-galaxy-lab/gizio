@@ -2,6 +2,7 @@
 data/
 docs/api/
 env/
+interpreter/
 
 # Select from https://github.com/github/gitignore/blob/master/Python.gitignore
 # Expand as needed
@@ -14,6 +15,9 @@ build/
 dist/
 pip-wheel-metadata/
 *.egg-info/
+
+# Unit test / coverage reports
+.tox/
 
 # Sphinx documentation
 docs/_build/

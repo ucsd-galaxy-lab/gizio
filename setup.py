@@ -13,7 +13,7 @@ with open("README.md", "r") as f:
 setup(
     name="gizio",
     version=about["__version__"],
-    author=about['__author__'],
+    author=about["__author__"],
     description=about["__description__"],
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -21,10 +21,15 @@ setup(
     package_dir={"": "src"},
     packages=find_packages("src"),
     install_requires=["astropy", "h5py", "numpy", "unyt"],
+    # https://pypi.org/classifiers/
     classifiers=[
         "Intended Audience :: Science/Research",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3 :: Only",
+        "Topic :: Scientific/Engineering",
     ],
 )
