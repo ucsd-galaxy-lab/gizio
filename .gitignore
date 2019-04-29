@@ -4,7 +4,7 @@ docs/api/
 env/
 interpreter/
 
-# Select from https://github.com/github/gitignore/blob/master/Python.gitignore
+# https://github.com/github/gitignore/blob/master/Python.gitignore
 # Expand as needed
 
 # Byte-compiled / optimized / DLL files

@@ -13,7 +13,7 @@ help:
 # env
 
 .PHONY: init
-init: env install
+init: env install interpreters
 env:
 	conda env create -f environment.yml -p env
 
@@ -38,7 +38,7 @@ lint:
 	pylint src
 
 .PHONY: test
-test: data interpreters
+test: data
 	PATH=$(PWD)/interpreter:$(PATH) tox
 
 # doc

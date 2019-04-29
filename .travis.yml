@@ -1,0 +1,9 @@
+# https://tox-travis.readthedocs.io/
+
+language: python
+python:
+  - "3.6"
+  - "3.7"
+dist: xenial
+install: pip install tox-travis
+script: make test
