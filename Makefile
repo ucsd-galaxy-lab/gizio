@@ -27,7 +27,7 @@ up:
 
 .PHONY: fmt
 fmt:
-	black src tests setup.py
+	black docs/conf.py src tests setup.py
 
 .PHONY: lint
 lint:
@@ -44,11 +44,26 @@ doc: data
 	# Strip notebook output
 	jupyter nbconvert --to notebook --inplace --ClearOutputPreprocessor.enabled=True docs/*.ipynb
 	# Remove existing API docs to build from scratch
-	rm -rf docs/api
+	rm -rf docs/{_build,api}
 	# Build HTML output
 	cd docs && make html
 	# Open to review
 	$(OPEN) docs/_build/html/index.html
+
+# release
+
+.PHONY: build
+build:
+	rm -rf build dist
+	python setup.py sdist bdist_wheel
+
+.PHONY: publish-test
+publish-test:
+	python -m twine upload --repository-url https://test.pypi.org/legacy/ dist/*
+
+.PHONY: publish
+publish:
+	python -m twine upload --repository-url https://test.pypi.org/legacy/ dist/*
 
 # misc
 

@@ -2,18 +2,25 @@ channels:
   - conda-forge
 dependencies:
   - python=3
-  # install requires
+  # install
   - astropy
   - h5py
   - numpy
   - unyt
-  # develop requires
+  # develop
+  - tox
+  ## code
   - black
   - jupyterlab
-  - nbconvert
-  - nbsphinx
   - pylint
   - pytest
+  ## doc
+  - m2r
+  - nbconvert
+  - nbsphinx
   - sphinx
   - sphinxcontrib-apidoc
-  - tox
+  ## release
+  - setuptools
+  - twine
+  - wheel

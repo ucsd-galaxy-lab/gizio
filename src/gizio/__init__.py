@@ -1,2 +1,4 @@
 """The gizio package."""
-from .snap import Snapshot
+from .__about__ import __version__, __author__
+
+from .core import load

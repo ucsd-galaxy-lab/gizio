@@ -9,10 +9,3 @@ The main goal of gizio is to replace ``readsnap.py`` as a more flexible to use a
 * Serve as an independant implementation of the GIZMO snapshot specification to cross check with other codes.
 
 Note that gizio does not intend to compete with the more general tools like `yt <https://yt-project.org/>`_ or `pynbody <http://pynbody.github.io/pynbody/>`_. gizio is serving at a lower level and in a much more limited scope.
-
-Installation
-------------
-
-Now, if you'd like to have a try, this is how you could install ``gizio``::
-
-    pip install git+https://github.com/qobilidop/gizio

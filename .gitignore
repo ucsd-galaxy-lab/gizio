@@ -1,16 +1,17 @@
 # Local
-.vscode/
 data/
 docs/api/
 env/
 
-# Take from https://github.com/github/gitignore/blob/master/Python.gitignore
+# Select from https://github.com/github/gitignore/blob/master/Python.gitignore
 # Expand as needed
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
 
 # Distribution / packaging
+build/
+dist/
 pip-wheel-metadata/
 *.egg-info/
 

@@ -1,7 +1,6 @@
-import abc
-
-from gizio.spec.abc import Specification
+import gizio
 
 
-def test_specification():
-    assert issubclass(Specification, abc.ABC)
+def test_gizmo_spec():
+    snap = gizio.load("data/FIRE_M12i_ref11", spec="gizmo")
+    assert isinstance(snap.spec, gizio.spec.GIZMOSpec)

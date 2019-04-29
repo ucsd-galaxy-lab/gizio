@@ -1,12 +1,20 @@
-gizio: GIZMO Snapshot IO
-========================
-
-`gizio <https://github.com/qobilidop/gizio>`_ is a light-weight Python package for `GIZMO <http://www.tapir.caltech.edu/~phopkins/Site/GIZMO.html>`_ snapshot IO.
+.. mdinclude:: ../README.md
 
 .. toctree::
     :maxdepth: 2
 
     about
-    example
+    quickstart
+    user_guide
+
+.. toctree::
+    :maxdepth: 3
+
     API <api/gizio>
-    dev
+
+.. toctree::
+    :maxdepth: 2
+
+    contributing
+    changelog
+    authors
