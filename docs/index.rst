@@ -1,10 +1,11 @@
 .. mdinclude:: ../README.md
 
+Reference
+---------
+
 .. toctree::
     :maxdepth: 2
 
-    about
-    quickstart
     user_guide
 
 .. toctree::
