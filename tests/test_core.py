@@ -30,7 +30,7 @@ def test_load():
 
 def test_snapshot():
     """Test Snapshot class."""
-    snap = Snapshot([SNAP_PATH], "gizmo")
+    snap = gizio.load(SNAP_PATH, spec="gizmo")
 
     # Test attributes
     assert isinstance(snap.paths, list)
@@ -70,21 +70,30 @@ def test_snapshot():
 
 def test_particle_selector():
     """Test ParticleSelector class."""
-    snap = gizio.load("data/FIRE_M12i_ref11/snapshot_600.hdf5")
+    snap = gizio.load(SNAP_PATH)
     gas = snap.pt["gas"]
     star = snap.pt["star"]
 
+    # Test attributes
+    for ps in snap.pt.values():
+        assert isinstance(gas.snap, Snapshot)
+        assert isinstance(gas.pmask, OrderedDict)
+        assert isinstance(gas.shape, OrderedDict)
+
     # Test field system
-    gas.keys()
-    gas.direct_fields()
-    assert isinstance(gas["t"], unyt_array)
-    assert isinstance(star["age"], unyt_array)
+    for key in gas.keys():
+        isinstance(gas[key], unyt_array)
+    assert isinstance(gas.direct_fields(), dict)
 
     # Test mask operation
     hot_gas = gas[gas["t"].to_value("K") > 1e5]
     assert isinstance(hot_gas, ParticleSelector)
     baryon = gas | star
     assert isinstance(baryon, ParticleSelector)
+    assert len(baryon) == len(gas) + len(star)
     assert isinstance(baryon & gas, ParticleSelector)
+    assert len(baryon & gas) == len(gas)
     assert isinstance(baryon - gas, ParticleSelector)
+    assert len(baryon - gas) == len(star)
     assert isinstance(baryon ^ gas, ParticleSelector)
+    assert len(baryon ^ gas) == len(star)

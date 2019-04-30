@@ -1,4 +1,5 @@
 """Core interface."""
+from collections import OrderedDict
 from copy import copy, deepcopy
 import os
 from pathlib import Path
@@ -7,7 +8,6 @@ import h5py
 import numpy as np
 import unyt
 
-from collections import OrderedDict
 from .spec import SPEC_REGISTRY
 
 
@@ -20,9 +20,9 @@ def load(prefix, suffix=".hdf5", spec="gizmo"):
         Snapshot file(s) prefix.
     suffix : str, optional
         Snapshot file(s) suffix. (default: ".hdf5")
-    spec : str or Specification, optional
-        Snapshot format specification. If given as str, a built-in
-        specification will be used. (default: "gizmo")
+    spec : str or SpecBase, optional
+        Snapshot format specification. If given as str, will use a built-in
+        one. (default: "gizmo")
 
     Returns
     -------
@@ -44,30 +44,30 @@ def load(prefix, suffix=".hdf5", spec="gizmo"):
             # Glob prefix case
             glob_pattern += "*" + suffix
     paths = sorted(parent.glob(glob_pattern))
+    if isinstance(spec, str):
+        spec = SPEC_REGISTRY[spec]()
     return Snapshot(paths, spec)
 
 
 class Snapshot:
     """Simulation snapshot.
 
-    Fields could be accessed using a full (ptype, field) tuple, for example:
+    .. describe:: snap[key]
+    .. describe:: snap[ptype, field]
 
-    >>> snap["PartType0", "Coordinates"]
+        Load the field from file and cache in memory.
 
-    Fields are loaded in a lazy manner and cached in memory after the first
-    access. If you want to delete a specific field cache:
+    .. describe:: del snap[key]
+    .. describe:: del snap[ptype, field]
 
-    >>> del snap["PartType0", "Coordinates"]
-
-    If you want to delete all the cache at once, use :meth:Snapshot.clear_cache instead.
+        Delete the cache.
 
     Parameters
     ----------
     paths : typing.Iterable
         Snapshot file paths in correct order.
-    spec : str or Specification, optional
-        Snapshot format specification. If given as str, a built-in
-        specification will be used.
+    spec : SpecBase
+        Snapshot format specification.
 
     Attributes
     ----------
@@ -86,7 +86,7 @@ class Snapshot:
         An astropy cosmology calculator.
     unit_registry : unyt.unit_registry.UnitRegistry
         Simulation unit registry.
-    pt : dict[str, str]
+    pt : dict
         Dictionary of particle type selectors.
 
     """
@@ -96,8 +96,6 @@ class Snapshot:
         self.prefix = os.path.commonprefix(self.paths).rstrip(".")
 
         # Apply spec to extract meta info
-        if isinstance(spec, str):
-            spec = SPEC_REGISTRY[spec]()
         header, shape, cosmology, unit_registry = spec.apply_to(self)
         self.spec = spec
         self.header = header
@@ -109,17 +107,15 @@ class Snapshot:
         self.pt = {}
         for ptype, abbr in self.spec.ptype_abbrs.items():
             if self.shape[ptype] > 0:
-                ps = ParticleSelector.from_ptypes(self, [ptype])
-                self.spec.register_derived_fields(ps, abbr)
-                self.pt[abbr] = ps
-        # "all" is a special one that include all particle types
+                self.pt[abbr] = ParticleSelector.from_ptypes(self, [ptype])
+                self.spec.register_derived_fields(self.pt[abbr], abbr)
         self.pt["all"] = ParticleSelector.from_ptypes(self, self.spec.ptypes)
         self.spec.register_derived_fields(self.pt["all"], "all")
 
         # Initialize field cache
         self._field_cache = {}
 
-    # Dictionay interface
+    # dictionay interface
 
     def keys(self):
         """A list of available keys."""
@@ -166,7 +162,7 @@ class Snapshot:
         # Delete cache
         del self._field_cache[key]
 
-    # Unyt helpers
+    # unyt helpers
 
     def array(self, value, unit):
         """Helper method to create unyt array with snapshot unit registry.
@@ -212,34 +208,34 @@ class ParticleSelector:
 
         Return the number of selected particles.
 
-    .. describe:: fs[key]
+    .. describe:: ps[key]
 
-        Retrieve the field. Compute and create cache if not existing before.
+        Retrieve the field. Compute and create cache if not existing already.
 
-    .. describe:: del fs[key]
+    .. describe:: del ps[key]
 
-        Removed the field cache.
+        Delete the cache.
 
     Parameters
     ----------
     snap : Snapshot
-        The snapshot to associate with.
+        The snapshot to access.
 
     Attributes
     ----------
     snap : Snapshot
-        The snapshot associated with.
+        The snapshot to access.
 
     """
 
     @property
     def pmask(self):
-        """Particle mask."""
+        """collections.OrderedDict: Particle mask."""
         return OrderedDict(zip(self.snap.spec.ptypes, self._masks))
 
     @property
     def shape(self):
-        """Shape."""
+        """collections.OrderedDict: Shape."""
         return OrderedDict(
             [
                 (ptype, mask.sum()) if mask is not None else (ptype, 0)
@@ -249,7 +245,21 @@ class ParticleSelector:
 
     @classmethod
     def from_ptypes(cls, snap, ptypes):
-        """Create particle selector for specified ptypes."""
+        """Create particle selector for specified particle types.
+
+        Parameters
+        ----------
+        snap : Snapshot
+            The snapshot to access.
+        ptypes : list
+            A list of particle types to select.
+
+        Returns
+        -------
+        ParticleSelector
+            The corresponding particle selector.
+
+        """
         spec_ptypes = deepcopy(snap.spec.ptypes)
         masks = []
         for ptype in spec_ptypes:
@@ -273,10 +283,6 @@ class ParticleSelector:
         for key, field in self.direct_fields().items():
             self.register_direct_field(key, field)
 
-    def info(self):
-        """Print a concise summary."""
-        pass
-
     def __copy__(self):
         ps = ParticleSelector(self.snap, deepcopy(self._masks))
         ps._field_registry = deepcopy(self._field_registry)
@@ -285,14 +291,28 @@ class ParticleSelector:
     def __len__(self):
         return sum(self.shape.values())
 
-    # Field system
+    # field system
 
     def keys(self):
-        """All registered fields."""
+        """All registered fields.
+
+        Returns
+        -------
+        dict_keys
+            A view on keys.
+
+        """
         return self._field_registry.keys()
 
     def direct_fields(self):
-        """Known direct fields."""
+        """Known direct fields.
+
+        Returns
+        -------
+        dict
+            A dictionary mapping shorhand keys to raw field names.
+
+        """
         ptype_fields = {}
         for ptype, field in self.snap.keys():
             if self.pmask[ptype] is not None:
@@ -379,7 +399,7 @@ class ParticleSelector:
         if key in self._field_cache:
             del self._field_cache[key]
 
-    # Mask operation
+    # mask operation
 
     def normalize_mask(self):
         """Normalize mask arrays."""

@@ -40,7 +40,26 @@ class SpecBase(abc.ABC):
             self.field_units[raw] = unit
 
     def apply_to(self, snap):
-        """Apply specification to snapshot."""
+        """Apply specification to snapshot.
+
+        Parameters
+        ----------
+        snap : Snapshot
+            The snapshot to apply to.
+
+        Returns
+        -------
+        header : dict
+            Snapshot header.
+        shape : collections.OrderedDict
+            Data shape composed of {ptype_name: n_part} entries, in the
+            specification ptypes order.
+        cosmology : astropy.cosmology.LambdaCDM
+            An astropy cosmology calculator.
+        unit_registry : unyt.unit_registry.UnitRegistry
+            Simulation unit registry.
+
+        """
         header = self._read_header(snap)
         shape = self._get_shape(header)
         a, h, cosmology = self._get_cosmology(header)
@@ -107,9 +126,17 @@ class SpecBase(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def register_derived_fields(self, field_system, ptype):
-        """Register derived fields."""
-        pass
+    def register_derived_fields(self, ps, ptype):
+        """Register default derived fields to a field system.
+
+        Parameters
+        ----------
+        ps : ParticleSelector
+            The particle selector to register fields to.
+        ptype : str
+            The particle type to register fields with.
+
+        """
 
 
 class GIZMOSpec(SpecBase):
@@ -205,21 +232,42 @@ class GIZMOSpec(SpecBase):
         attach_unit("box_size", "code_length")
         attach_unit("mass_tab", "code_mass")
 
-    def register_derived_fields(self, field_system, ptype):
-        """Register default derived fields to a field system."""
+    def register_derived_fields(self, ps, ptype):
+        """Register default derived fields to a field system.
+
+        Parameters
+        ----------
+        ps : ParticleSelector
+            The particle selector to register fields to.
+        ptype : str
+            The particle type to register fields with.
+
+        """
         if ptype == "gas":
-            field_system.register_field("t", self.compute_temperature)
+            ps.register_field("t", self.compute_temperature)
         if ptype == "star":
-            field_system.register_field("age", self.compute_age)
+            ps.register_field("age", self.compute_age)
 
     @staticmethod
-    def compute_age(field_system):
-        """Compute age from formation time."""
+    def compute_age(ps):
+        """Compute age from formation time.
+
+        Parameters
+        ----------
+        ps : ParticleSelector
+            A particle selector.
+
+        Returns
+        -------
+        unyt.unyt_array
+            The age array.
+
+        """
         # See the note following StellarFormationTime on this page:
         # http://www.tapir.caltech.edu/~phopkins/Site/GIZMO_files/gizmo_documentation.html#snaps-reading
-        sft = field_system["sft"].d
+        sft = ps["sft"].d
 
-        snap = field_system.snap
+        snap = ps.snap
         if snap.header["cosmological"]:
             a_form = sft
             z_form = 1 / a_form - 1
@@ -231,13 +279,25 @@ class GIZMOSpec(SpecBase):
         return age.to("Gyr")
 
     @staticmethod
-    def compute_temperature(field_system):
-        """Compute temperature from internal energy."""
+    def compute_temperature(ps):
+        """Compute temperature from internal energy.
+
+        Parameters
+        ----------
+        ps : ParticleSelector
+            A particle selector.
+
+        Returns
+        -------
+        unyt.unyt_array
+            The temperature array.
+
+        """
         # See the note following InternalEnergy on this page:
         # http://www.tapir.caltech.edu/~phopkins/Site/GIZMO_files/gizmo_documentation.html#snaps-reading
-        ne = field_system["ne"]
-        u = field_system["u"]
-        z_he = field_system["z"][:, 1]
+        ne = ps["ne"]
+        u = ps["u"]
+        z_he = ps["z"][:, 1]
 
         from unyt.physical_constants import kb, mp
 
