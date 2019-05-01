@@ -9,4 +9,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Core functionalities.
 - A general development workflow.
 
-[Unreleased]: https://github.com/qobilidop/gizio/tree/master
+[Unreleased]: https://github.com/galaxy-lab/gizio/tree/master

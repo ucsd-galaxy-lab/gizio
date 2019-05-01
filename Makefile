@@ -14,6 +14,11 @@ help:
 
 .PHONY: init
 init: env install interpreters
+
+.PHONY: up
+up: env install
+	conda env update -f environment.yml -p env
+
 env:
 	conda env create -f environment.yml -p env
 
@@ -22,10 +27,6 @@ install: env
 	mv pyproject.toml pyproject.toml.backup
 	env/bin/pip install -e .
 	mv pyproject.toml.backup pyproject.toml
-
-.PHONY: up
-up: env install
-	conda env update -f environment.yml -p env
 
 # code
 

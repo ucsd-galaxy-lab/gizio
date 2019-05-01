@@ -18,8 +18,9 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://gizio.readthedocs.io",
-    package_dir={"": "src"},
     packages=find_packages("src"),
+    package_dir={"": "src"},
+    python_requires=">=3.6",
     install_requires=["astropy", "h5py", "numpy", "unyt"],
     # https://pypi.org/classifiers/
     classifiers=[
