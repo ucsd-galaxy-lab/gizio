@@ -12,5 +12,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Core functionalities.
 - A general development workflow.
 
-[Unreleased]: https://github.com/galaxy-lab/gizio/releases/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/galaxy-lab/gizio/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/galaxy-lab/gizio/releases/tag/v0.1.0
