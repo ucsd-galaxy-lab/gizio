@@ -13,9 +13,8 @@ The whole development workflow is managed by a Makefile. [conda](https://docs.co
 * Edit doc:
     * `make doc` to build and open the doc for review.
 * Release:
-    * Make sure changelog is up to date.
-    * Change `__version__` (in `gizio.__about__`) from dev to production. From `1.0.0.dev0` to `1.0.0` for example. Commit the change.
+    * Change `__version__` (in `gizio.__about__`) from dev to production. From `1.0.0.dev0` to `1.0.0` for example. Update changelog and commit.
     * `make build`.
     * `make publish-test` to test publish on [TestPyP](https://test.pypi.org).
     * `make publish` to publish officially on [PyPI](https://pypi.org).
-    * Change `__version__` back to dev. From `1.0.0` to `1.1.0.dev0` for example. Commit the change.
+    * Change `__version__` back to dev. From `1.0.0` to `1.1.0.dev0` for example. Commit.
